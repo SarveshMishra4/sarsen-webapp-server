@@ -74,5 +74,14 @@ export const validateEnv = (): void => {
     );
   }
   
+  // NEW: Add validation for JWT secrets length
+  if (env.JWT_ACCESS_SECRET.length < 32) {
+    console.warn('⚠️ Warning: JWT_ACCESS_SECRET should be at least 32 characters long for security');
+  }
+  
+  if (env.JWT_REFRESH_SECRET.length < 32) {
+    console.warn('⚠️ Warning: JWT_REFRESH_SECRET should be at least 32 characters long for security');
+  }
+  
   console.log('✅ Environment variables validated successfully');
 };

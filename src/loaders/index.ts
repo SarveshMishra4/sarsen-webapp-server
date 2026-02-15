@@ -23,10 +23,16 @@ import adminAuthRoutes from '../routes/adminAuth.routes';
 import blueprintRoutes from '../routes/blueprint.routes';
 // Phase 4: Client auth routes for engagement-scoped user access
 import clientAuthRoutes from '../routes/clientAuth.routes';
-// PHASE 5: Engagement routes for core engagement management
+// Phase 5: Engagement routes for core engagement management
 import engagementRoutes from '../routes/engagement.routes';
-// PHASE 5: Payment routes for Razorpay integration
+// Phase 5: Payment routes for Razorpay integration
 import paymentRoutes from '../routes/payment.routes';
+// Phase 6: Message routes for engagement-scoped messaging
+import messageRoutes from '../routes/message.routes';
+// PHASE 7: Questionnaire routes for client surveys and data collection
+import questionnaireRoutes from '../routes/questionnaire.routes';
+// PHASE 7: Resource routes for file and link sharing
+import resourceRoutes from '../routes/resource.routes';
 
 /**
  * Initialize all application components
@@ -72,11 +78,20 @@ export const initLoaders = async (app: Application): Promise<void> => {
     // Phase 4: Client authentication routes (engagement-scoped)
     app.use('/api/client/auth', clientAuthRoutes);
     
-    // PHASE 5: Engagement routes (client and admin)
+    // Phase 5: Engagement routes (client and admin)
     app.use('/api', engagementRoutes); // Contains /api/client/engagements and /api/admin/engagements
     
-    // PHASE 5: Payment routes (public and admin)
+    // Phase 5: Payment routes (public and admin)
     app.use('/api', paymentRoutes); // Contains /api/payments/* and /api/admin/payments/*
+    
+    // Phase 6: Message routes (client and admin messaging)
+    app.use('/api', messageRoutes); // Contains /api/messages/* and /api/admin/messages/*
+    
+    // PHASE 7: Questionnaire routes (admin and client)
+    app.use('/api', questionnaireRoutes); // Contains /api/admin/questionnaires/* and /api/client/questionnaires/*
+    
+    // PHASE 7: Resource routes (admin and client)
+    app.use('/api', resourceRoutes); // Contains /api/admin/resources/*, /api/client/resources/*, and /api/resources/*
     
     // 7. Health check at root (optional)
     app.get('/', (req, res) => {

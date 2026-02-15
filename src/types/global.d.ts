@@ -226,8 +226,7 @@ export interface AdminDashboardStats {
   recentEngagements: EngagementData[];
 }
 
-// PHASE 6: Message-related type definitions
-
+// Phase 6: Message-related type definitions
 export type SenderType = 'admin' | 'client';
 
 export interface MessageAttachment {
@@ -283,4 +282,114 @@ export interface RecentMessageItem {
     engagementId: string;
     serviceName: string;
   };
+}
+
+// PHASE 7: Questionnaire-related type definitions
+
+export type QuestionType = 'text' | 'textarea' | 'select' | 'multiselect' | 'file' | 'date';
+export type QuestionnaireStatus = 'pending' | 'submitted' | 'overdue' | 'cancelled';
+
+export interface QuestionnaireQuestion {
+  id?: string;
+  questionText: string;
+  questionType: QuestionType;
+  options?: string[];
+  required: boolean;
+  order: number;
+  answer?: any;
+  fileUrl?: string;
+}
+
+export interface QuestionnaireData {
+  id: string;
+  engagementId: string;
+  createdBy: string;
+  title: string;
+  description?: string;
+  instructions?: string;
+  questions: QuestionnaireQuestion[];
+  status: QuestionnaireStatus;
+  sentAt: Date;
+  deadline?: Date;
+  submittedAt?: Date;
+  submittedBy?: string;
+  timeSpent?: number;
+  totalQuestions: number;
+  answeredQuestions: number;
+  reminderCount: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface CreateQuestionnaireInput {
+  engagementId: string;
+  title: string;
+  description?: string;
+  instructions?: string;
+  questions: Omit<QuestionnaireQuestion, 'id' | 'answer' | 'fileUrl'>[];
+  deadline?: string;
+}
+
+export interface SubmitQuestionnaireInput {
+  answers: {
+    questionId: string;
+    answer: any;
+    fileUrl?: string;
+  }[];
+  timeSpent?: number;
+}
+
+// PHASE 7: Resource-related type definitions
+
+export type ResourceType = 'pdf' | 'doc' | 'excel' | 'ppt' | 'link' | 'video' | 'image' | 'other';
+
+export interface ResourceData {
+  id: string;
+  engagementId: string;
+  sharedBy: string;
+  sharedByName?: string;
+  type: ResourceType;
+  title: string;
+  description?: string;
+  url?: string;
+  fileKey?: string;
+  fileName?: string;
+  fileSize?: number;
+  mimeType?: string;
+  icon?: string;
+  thumbnailUrl?: string;
+  downloadCount: number;
+  viewCount: number;
+  lastAccessedAt?: Date;
+  isActive: boolean;
+  isPublic: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface ShareResourceInput {
+  engagementId: string;
+  type: ResourceType;
+  title: string;
+  description?: string;
+  url?: string;
+  fileKey?: string;
+  fileName?: string;
+  fileSize?: number;
+  mimeType?: string;
+  icon?: string;
+  thumbnailUrl?: string;
+  isPublic?: boolean;
+}
+
+export interface ResourceFilters {
+  type?: ResourceType;
+  isActive?: boolean;
+  page?: number;
+  limit?: number;
+}
+
+export interface ResourceStats {
+  byType: Record<string, number>;
+  total: number;
 }

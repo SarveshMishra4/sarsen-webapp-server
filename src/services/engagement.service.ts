@@ -13,14 +13,18 @@ import { User } from '../models/User.model';
 import { Order } from '../models/Order.model';
 import * as blueprintService from './blueprint.service';
 import * as clientAuthService from './clientAuth.service';
+import * as progressService from './progress.service'; // PHASE 8: Import progress service
 import { logger } from '../utils/logger';
 import { ApiError } from '../middleware/error.middleware';
 import { 
   MILESTONES, 
   DEFAULT_STARTING_MILESTONE, 
-  ALLOWED_MILESTONES, // FIXED: Added this import
+  ALLOWED_MILESTONES,
   MilestoneType,
-  isValidMilestone 
+  isValidMilestone,
+  getAllowedTransitions,
+  getNextRecommendedMilestone,
+  getMilestoneLabel // FIXED: Added missing import
 } from '../constants/milestones';
 import mongoose from 'mongoose';
 
@@ -130,7 +134,7 @@ export const createEngagementFromPayment = async (
     // TODO: In production, you might want to have a dedicated system admin account
     const systemAdminId = new mongoose.Types.ObjectId(); // Placeholder
     
-    // FIXED: Ensure default progress is a valid MilestoneType
+    // Ensure default progress is a valid MilestoneType
     const defaultProgress: MilestoneType = 
       blueprintClone.defaultProgress && isValidMilestone(blueprintClone.defaultProgress)
         ? blueprintClone.defaultProgress as MilestoneType
@@ -157,7 +161,7 @@ export const createEngagementFromPayment = async (
         addedAt: new Date(),
       })),
       
-      // FIXED: Use validated milestone value
+      // Use validated milestone value
       currentProgress: defaultProgress,
       messagingAllowed: blueprintClone.messagingEnabledByDefault,
       
@@ -166,7 +170,7 @@ export const createEngagementFromPayment = async (
       resourceCount: blueprintClone.resources?.length || 0,
       questionnaireCount: 0,
       
-      // FIXED: Use validated milestone value in history
+      // Use validated milestone value in history
       progressHistory: [{
         value: defaultProgress,
         updatedBy: systemAdminId,
@@ -300,6 +304,8 @@ export const getAllEngagements = async (
  * @param adminId - Admin updating progress
  * @param note - Optional note
  * @returns Updated engagement
+ * 
+ * @deprecated Use progressService.updateProgress instead for better tracking
  */
 export const updateEngagementProgress = async (
   engagementId: string,
@@ -312,7 +318,7 @@ export const updateEngagementProgress = async (
       throw new ApiError(400, 'Admin ID is required');
     }
     
-    // FIXED: Validate progress is a valid milestone and cast to MilestoneType
+    // Validate progress is a valid milestone and cast to MilestoneType
     if (!isValidMilestone(progress)) {
       throw new ApiError(
         400,
@@ -335,29 +341,17 @@ export const updateEngagementProgress = async (
       throw new ApiError(404, 'Engagement not found');
     }
     
-    // Update progress - now TypeScript is happy
-    engagement.currentProgress = validatedProgress;
-    
-    // Add to history
-    engagement.progressHistory.push({
-      value: validatedProgress,
-      updatedBy: new mongoose.Types.ObjectId(adminId),
-      updatedAt: new Date(),
+    // PHASE 8: Use progress service for validation and history
+    // This maintains backward compatibility while leveraging new system
+    const result = await progressService.updateProgress({
+      engagementId: engagement._id.toString(),
+      newProgress: validatedProgress,
+      adminId,
       note,
+      isAutomatic: false,
     });
     
-    // If progress is 100%, handle completion
-    if (validatedProgress === MILESTONES.COMPLETED && !engagement.isCompleted) {
-      engagement.isCompleted = true;
-      engagement.completedAt = new Date();
-      engagement.messagingAllowed = false; // Disable messaging on completion
-    }
-    
-    await engagement.save();
-    
-    logger.info(`Engagement ${engagement.engagementId} progress updated to ${validatedProgress}%`);
-    
-    return engagement;
+    return result;
   } catch (error) {
     if (error instanceof ApiError) throw error;
     logger.error('Error updating engagement progress:', error);
@@ -376,6 +370,8 @@ export const getAdminDashboardStats = async (): Promise<any> => {
       activeEngagements,
       completedEngagements,
       recentEngagements,
+      // PHASE 8: Add stalled engagements count
+      stalledEngagements,
     ] = await Promise.all([
       Engagement.countDocuments(),
       Engagement.countDocuments({ isActive: true, isCompleted: false }),
@@ -385,6 +381,8 @@ export const getAdminDashboardStats = async (): Promise<any> => {
         .limit(5)
         .populate('userId', 'email firstName lastName')
         .select('engagementId serviceName currentProgress isCompleted createdAt'),
+      // PHASE 8: Get stalled engagements (no progress in 7+ days)
+      progressService.checkStalledEngagements(7).then(stalled => stalled.length),
     ]);
     
     return {
@@ -392,9 +390,71 @@ export const getAdminDashboardStats = async (): Promise<any> => {
       activeEngagements,
       completedEngagements,
       recentEngagements,
+      stalledEngagements, // PHASE 8: New metric
     };
   } catch (error) {
     logger.error('Error fetching admin dashboard stats:', error);
     throw new ApiError(500, 'Failed to fetch dashboard stats');
+  }
+};
+
+// PHASE 8: New helper functions
+
+/**
+ * Get next recommended milestone for an engagement
+ * @param engagementId - Engagement ID
+ * @returns Next recommended milestone or null
+ */
+export const getNextMilestone = async (
+  engagementId: string
+): Promise<{ value: number; label: string } | null> => {
+  try {
+    const engagement = await Engagement.findById(engagementId);
+    if (!engagement) {
+      throw new ApiError(404, 'Engagement not found');
+    }
+    
+    const nextValue = getNextRecommendedMilestone(engagement.currentProgress as MilestoneType);
+    if (!nextValue) return null;
+    
+    return {
+      value: nextValue,
+      label: getMilestoneLabel(nextValue), // FIXED: Now properly imported
+    };
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    logger.error('Error getting next milestone:', error);
+    throw new ApiError(500, 'Failed to get next milestone');
+  }
+};
+
+/**
+ * Get progress summary for multiple engagements
+ * @param engagementIds - Array of engagement IDs
+ * @returns Progress summary
+ */
+export const getProgressSummary = async (
+  engagementIds: string[]
+): Promise<Record<string, any>> => {
+  try {
+    const engagements = await Engagement.find({
+      _id: { $in: engagementIds },
+    }).select('engagementId currentProgress isCompleted');
+    
+    const summary: Record<string, any> = {};
+    
+    engagements.forEach(eng => {
+      summary[eng.engagementId] = {
+        currentProgress: eng.currentProgress,
+        isCompleted: eng.isCompleted,
+        progressPercentage: eng.currentProgress,
+        nextMilestone: getNextRecommendedMilestone(eng.currentProgress as MilestoneType),
+      };
+    });
+    
+    return summary;
+  } catch (error) {
+    logger.error('Error getting progress summary:', error);
+    throw new ApiError(500, 'Failed to get progress summary');
   }
 };

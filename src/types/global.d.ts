@@ -224,6 +224,7 @@ export interface AdminDashboardStats {
   activeEngagements: number;
   completedEngagements: number;
   recentEngagements: EngagementData[];
+  stalledEngagements: number; // Phase 8: New metric
 }
 
 // Phase 6: Message-related type definitions
@@ -284,8 +285,7 @@ export interface RecentMessageItem {
   };
 }
 
-// PHASE 7: Questionnaire-related type definitions
-
+// Phase 7: Questionnaire-related type definitions
 export type QuestionType = 'text' | 'textarea' | 'select' | 'multiselect' | 'file' | 'date';
 export type QuestionnaireStatus = 'pending' | 'submitted' | 'overdue' | 'cancelled';
 
@@ -339,8 +339,7 @@ export interface SubmitQuestionnaireInput {
   timeSpent?: number;
 }
 
-// PHASE 7: Resource-related type definitions
-
+// Phase 7: Resource-related type definitions
 export type ResourceType = 'pdf' | 'doc' | 'excel' | 'ppt' | 'link' | 'video' | 'image' | 'other';
 
 export interface ResourceData {
@@ -392,4 +391,60 @@ export interface ResourceFilters {
 export interface ResourceStats {
   byType: Record<string, number>;
   total: number;
+}
+
+// PHASE 8: Progress-related type definitions
+
+export type UpdatedByType = 'admin' | 'system';
+
+export interface ProgressHistoryEntry {
+  id: string;
+  engagementId: string;
+  updatedBy: string;
+  updatedByType: UpdatedByType;
+  fromValue: MilestoneType;
+  toValue: MilestoneType;
+  timeAtMilestone?: number;
+  note?: string;
+  isAutomatic: boolean;
+  createdAt: Date;
+}
+
+export interface ProgressUpdateInput {
+  engagementId: string;
+  newProgress: number;
+  adminId: string;
+  note?: string;
+  isAutomatic?: boolean;
+}
+
+export interface ProgressValidationResult {
+  isValid: boolean;
+  message?: string;
+  allowedTransitions?: MilestoneType[];
+}
+
+export interface MilestoneTiming {
+  milestone: MilestoneType;
+  reachedAt: Date;
+  timeSpent?: number; // Time until next milestone (seconds)
+}
+
+export interface ProgressAnalytics {
+  currentProgress: MilestoneType;
+  isCompleted: boolean;
+  completedAt?: Date;
+  startDate: Date;
+  totalDuration?: number; // seconds
+  totalUpdates: number;
+  averageTimePerMilestone: Record<string, number>; // milestone label -> avg seconds
+  timeline: MilestoneTiming[];
+}
+
+export interface StalledEngagement {
+  engagementId: string;
+  serviceName: string;
+  currentProgress: MilestoneType;
+  lastUpdate: Date;
+  totalHistory: number;
 }

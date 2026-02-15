@@ -29,10 +29,12 @@ import engagementRoutes from '../routes/engagement.routes';
 import paymentRoutes from '../routes/payment.routes';
 // Phase 6: Message routes for engagement-scoped messaging
 import messageRoutes from '../routes/message.routes';
-// PHASE 7: Questionnaire routes for client surveys and data collection
+// Phase 7: Questionnaire routes for client surveys and data collection
 import questionnaireRoutes from '../routes/questionnaire.routes';
-// PHASE 7: Resource routes for file and link sharing
+// Phase 7: Resource routes for file and link sharing
 import resourceRoutes from '../routes/resource.routes';
+// PHASE 8: Progress routes for milestone tracking and analytics
+import progressRoutes from '../routes/progress.routes';
 
 /**
  * Initialize all application components
@@ -87,11 +89,14 @@ export const initLoaders = async (app: Application): Promise<void> => {
     // Phase 6: Message routes (client and admin messaging)
     app.use('/api', messageRoutes); // Contains /api/messages/* and /api/admin/messages/*
     
-    // PHASE 7: Questionnaire routes (admin and client)
+    // Phase 7: Questionnaire routes (admin and client)
     app.use('/api', questionnaireRoutes); // Contains /api/admin/questionnaires/* and /api/client/questionnaires/*
     
-    // PHASE 7: Resource routes (admin and client)
+    // Phase 7: Resource routes (admin and client)
     app.use('/api', resourceRoutes); // Contains /api/admin/resources/*, /api/client/resources/*, and /api/resources/*
+    
+    // PHASE 8: Progress routes (admin and client)
+    app.use('/api', progressRoutes); // Contains /api/admin/progress/* and /api/client/engagements/*/progress
     
     // 7. Health check at root (optional)
     app.get('/', (req, res) => {

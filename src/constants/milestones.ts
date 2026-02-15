@@ -28,15 +28,15 @@ export type MilestoneType = typeof MILESTONES[keyof typeof MILESTONES];
 export const ALLOWED_MILESTONES = Object.values(MILESTONES);
 
 // Default starting milestone for new engagements
-export const DEFAULT_STARTING_MILESTONE = MILESTONES.START;
+export const DEFAULT_STARTING_MILESTONE: MilestoneType = MILESTONES.START;
 
 /**
  * Check if a value is a valid milestone
  * @param value - Value to check
  * @returns Boolean indicating if value is a valid milestone
  */
-export const isValidMilestone = (value: number): boolean => {
-  return ALLOWED_MILESTONES.includes(value as any);
+export const isValidMilestone = (value: number): value is MilestoneType => {
+  return ALLOWED_MILESTONES.includes(value as MilestoneType);
 };
 
 /**
@@ -44,7 +44,7 @@ export const isValidMilestone = (value: number): boolean => {
  * @param value - Milestone value
  * @returns Human-readable label
  */
-export const getMilestoneLabel = (value: number): string => {
+export const getMilestoneLabel = (value: MilestoneType): string => {
   switch (value) {
     case MILESTONES.START:
       return 'Engagement Started';
@@ -71,6 +71,7 @@ export const getMilestoneLabel = (value: number): string => {
     case MILESTONES.COMPLETED:
       return 'Completed';
     default:
+      // This should never happen due to type safety
       return `${value}% Complete`;
   }
 };

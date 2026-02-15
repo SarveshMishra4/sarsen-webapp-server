@@ -31,10 +31,10 @@ export interface ClientTokenPayload extends TokenPayload {
  */
 export const generateAdminAccessToken = (payload: AdminTokenPayload): string => {
   try {
-    // FIXED: Ensure secret is treated as string and properly typed
+    // Ensure secret is treated as string and properly typed
     const secret = String(env.JWT_ACCESS_SECRET);
     
-    // FIXED: Explicitly type the options
+    // Explicitly type the options
     const options: jwt.SignOptions = {
       expiresIn: env.JWT_ADMIN_ACCESS_EXPIRY as jwt.SignOptions['expiresIn'],
     };
@@ -54,10 +54,10 @@ export const generateAdminAccessToken = (payload: AdminTokenPayload): string => 
  */
 export const generateRefreshToken = (payload: TokenPayload): string => {
   try {
-    // FIXED: Ensure secret is treated as string
+    // Ensure secret is treated as string
     const secret = String(env.JWT_REFRESH_SECRET);
     
-    // FIXED: Explicitly type the options
+    // Explicitly type the options
     const options: jwt.SignOptions = {
       expiresIn: env.JWT_REFRESH_EXPIRY as jwt.SignOptions['expiresIn'],
     };
@@ -77,10 +77,45 @@ export const generateRefreshToken = (payload: TokenPayload): string => {
  */
 export const verifyAdminAccessToken = (token: string): AdminTokenPayload => {
   try {
-    // FIXED: Ensure secret is treated as string
+    // Ensure secret is treated as string
     const secret = String(env.JWT_ACCESS_SECRET);
     
     const decoded = jwt.verify(token, secret) as AdminTokenPayload;
+    
+    // PHASE 4: Add validation for admin role
+    if (decoded.role !== 'ADMIN') {
+      throw new Error('Invalid token role');
+    }
+    
+    return decoded;
+  } catch (error) {
+    if (error instanceof jwt.TokenExpiredError) {
+      throw new Error('Token expired');
+    }
+    if (error instanceof jwt.JsonWebTokenError) {
+      throw new Error('Invalid token');
+    }
+    throw new Error('Token verification failed');
+  }
+};
+
+/**
+ * Verify client access token
+ * @param token - JWT token to verify
+ * @returns Decoded payload or throws error
+ */
+export const verifyClientAccessToken = (token: string): ClientTokenPayload => {
+  try {
+    // Ensure secret is treated as string
+    const secret = String(env.JWT_ACCESS_SECRET);
+    
+    const decoded = jwt.verify(token, secret) as ClientTokenPayload;
+    
+    // Validate that this is a client token
+    if (decoded.role !== 'CLIENT') {
+      throw new Error('Invalid token role');
+    }
+    
     return decoded;
   } catch (error) {
     if (error instanceof jwt.TokenExpiredError) {
@@ -100,7 +135,7 @@ export const verifyAdminAccessToken = (token: string): AdminTokenPayload => {
  */
 export const verifyRefreshToken = (token: string): TokenPayload => {
   try {
-    // FIXED: Ensure secret is treated as string
+    // Ensure secret is treated as string
     const secret = String(env.JWT_REFRESH_SECRET);
     
     const decoded = jwt.verify(token, secret) as TokenPayload;
@@ -117,16 +152,16 @@ export const verifyRefreshToken = (token: string): TokenPayload => {
 };
 
 /**
- * Generate client access token (will be used in Phase 4)
+ * Generate client access token
  * @param payload - Client user data
  * @returns JWT access token
  */
 export const generateClientAccessToken = (payload: ClientTokenPayload): string => {
   try {
-    // FIXED: Ensure secret is treated as string
+    // Ensure secret is treated as string
     const secret = String(env.JWT_ACCESS_SECRET);
     
-    // FIXED: Explicitly type the options
+    // Explicitly type the options
     const options: jwt.SignOptions = {
       expiresIn: env.JWT_CLIENT_ACCESS_EXPIRY as jwt.SignOptions['expiresIn'],
     };
@@ -136,5 +171,19 @@ export const generateClientAccessToken = (payload: ClientTokenPayload): string =
   } catch (error) {
     logger.error('Error generating client access token:', error);
     throw new Error('Failed to generate access token');
+  }
+};
+
+/**
+ * Decode token without verification (useful for checking expiry)
+ * @param token - JWT token
+ * @returns Decoded payload or null
+ */
+export const decodeToken = (token: string): TokenPayload | null => {
+  try {
+    const decoded = jwt.decode(token) as TokenPayload;
+    return decoded;
+  } catch (error) {
+    return null;
   }
 };

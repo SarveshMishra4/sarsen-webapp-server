@@ -6,6 +6,7 @@
  */
 
 import 'express';
+import { MilestoneType } from '../constants/milestones';
 
 declare global {
   namespace Express {
@@ -24,7 +25,7 @@ declare global {
        */
       client?: {
         id: string;
-        engagementId: string;
+        engagementId?: string; // Made optional for multi-engagement views
         email: string;
       };
       
@@ -57,7 +58,7 @@ export interface ClientTokenPayload extends TokenPayload {
   engagementId?: string;
 }
 
-// PHASE 3: Blueprint-related type definitions
+// Phase 3: Blueprint-related type definitions
 export interface BlueprintResource {
   type: 'pdf' | 'doc' | 'excel' | 'ppt' | 'link' | 'video' | 'image';
   title: string;
@@ -95,4 +96,133 @@ export interface ServiceBlueprintData {
   messagingEnabledByDefault: boolean;
   version: number;
   isActive: boolean;
+}
+
+// Phase 4: Client-related type definitions
+export interface ClientUser {
+  id: string;
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  company?: string;
+  phone?: string;
+  isActive: boolean;
+  engagements: string[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface ClientLoginResponse {
+  user: {
+    id: string;
+    email: string;
+    firstName?: string;
+    lastName?: string;
+    company?: string;
+  };
+  engagementId?: string;
+  accessToken: string;
+  refreshToken: string;
+}
+
+export interface ClientAuthRequest {
+  email: string;
+  password: string;
+  engagementId?: string;
+}
+
+// PHASE 5: Engagement and Order related type definitions
+
+export type OrderStatus = 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED';
+
+export interface EngagementMilestone {
+  value: MilestoneType;
+  label: string;
+  description?: string;
+  order: number;
+  isAutomatic: boolean;
+  completedAt?: Date;
+}
+
+export interface EngagementProgressHistory {
+  value: MilestoneType;
+  updatedAt: Date;
+  updatedBy: string; // Admin ID
+  note?: string;
+}
+
+export interface EngagementResource {
+  type: 'pdf' | 'doc' | 'excel' | 'ppt' | 'link' | 'video' | 'image';
+  title: string;
+  description?: string;
+  url?: string;
+  fileKey?: string;
+  order: number;
+  isRequired: boolean;
+  addedAt: Date;
+}
+
+export interface EngagementData {
+  engagementId: string;
+  serviceCode: string;
+  serviceName: string;
+  userId: string;
+  currentProgress: MilestoneType;
+  messagingAllowed: boolean;
+  isActive: boolean;
+  isCompleted: boolean;
+  messageCount: number;
+  resourceCount: number;
+  questionnaireCount: number;
+  startDate: Date;
+  expectedEndDate?: Date;
+  actualEndDate?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface OrderData {
+  orderId: string;
+  receipt: string;
+  email: string;
+  serviceCode: string;
+  serviceName: string;
+  amount: number;
+  currency: string;
+  finalAmount: number;
+  status: OrderStatus;
+  paymentId?: string;
+  userId?: string;
+  engagementId?: string;
+  createdAt: Date;
+  paidAt?: Date;
+}
+
+export interface CreateOrderResponse {
+  order: OrderData;
+  razorpayOrder: {
+    id: string;
+    amount: number;
+    currency: string;
+    receipt: string;
+  };
+}
+
+export interface CreateEngagementFromPaymentInput {
+  orderId: string;
+  email: string;
+  serviceCode: string;
+  userData?: {
+    firstName?: string;
+    lastName?: string;
+    company?: string;
+    phone?: string;
+  };
+}
+
+export interface AdminDashboardStats {
+  totalEngagements: number;
+  activeEngagements: number;
+  completedEngagements: number;
+  recentEngagements: EngagementData[];
 }

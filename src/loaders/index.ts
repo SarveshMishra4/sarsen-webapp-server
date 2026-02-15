@@ -19,8 +19,14 @@ import { requestLogger } from '../middleware/requestLogger.middleware';
 import healthRoutes from '../routes/health.route';
 // Phase 2: Admin auth routes
 import adminAuthRoutes from '../routes/adminAuth.routes';
-// PHASE 3: Import blueprint routes for service template management
+// Phase 3: Blueprint routes for service template management
 import blueprintRoutes from '../routes/blueprint.routes';
+// Phase 4: Client auth routes for engagement-scoped user access
+import clientAuthRoutes from '../routes/clientAuth.routes';
+// PHASE 5: Engagement routes for core engagement management
+import engagementRoutes from '../routes/engagement.routes';
+// PHASE 5: Payment routes for Razorpay integration
+import paymentRoutes from '../routes/payment.routes';
 
 /**
  * Initialize all application components
@@ -60,8 +66,17 @@ export const initLoaders = async (app: Application): Promise<void> => {
     // Phase 2: Admin authentication routes
     app.use('/api/admin/auth', adminAuthRoutes);
     
-    // PHASE 3: Service blueprint management routes (admin only)
+    // Phase 3: Service blueprint management routes (admin only)
     app.use('/api/admin/blueprints', blueprintRoutes);
+    
+    // Phase 4: Client authentication routes (engagement-scoped)
+    app.use('/api/client/auth', clientAuthRoutes);
+    
+    // PHASE 5: Engagement routes (client and admin)
+    app.use('/api', engagementRoutes); // Contains /api/client/engagements and /api/admin/engagements
+    
+    // PHASE 5: Payment routes (public and admin)
+    app.use('/api', paymentRoutes); // Contains /api/payments/* and /api/admin/payments/*
     
     // 7. Health check at root (optional)
     app.get('/', (req, res) => {

@@ -56,3 +56,43 @@ export interface ClientTokenPayload extends TokenPayload {
   role: 'CLIENT';
   engagementId?: string;
 }
+
+// PHASE 3: Blueprint-related type definitions
+export interface BlueprintResource {
+  type: 'pdf' | 'doc' | 'excel' | 'ppt' | 'link' | 'video' | 'image';
+  title: string;
+  description?: string;
+  url?: string;
+  fileKey?: string;
+  order: number;
+  isRequired: boolean;
+}
+
+export interface BlueprintSection {
+  title: string;
+  description?: string;
+  type: 'milestones' | 'resources' | 'questionnaires' | 'instructions' | 'custom';
+  order: number;
+  content?: any;
+}
+
+export interface BlueprintMilestone {
+  value: number; // Should be from MILESTONES constants
+  label: string;
+  description?: string;
+  order: number;
+  isAutomatic: boolean;
+}
+
+export interface ServiceBlueprintData {
+  serviceCode: string;
+  serviceName: string;
+  serviceSlug: string;
+  milestones: BlueprintMilestone[];
+  sections: BlueprintSection[];
+  resources: BlueprintResource[];
+  defaultProgress: number;
+  messagingEnabledByDefault: boolean;
+  version: number;
+  isActive: boolean;
+}

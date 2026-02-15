@@ -17,8 +17,10 @@ import { requestLogger } from '../middleware/requestLogger.middleware';
 
 // Import routes
 import healthRoutes from '../routes/health.route';
-// NEW: Import admin auth routes for Phase 2
+// Phase 2: Admin auth routes
 import adminAuthRoutes from '../routes/adminAuth.routes';
+// PHASE 3: Import blueprint routes for service template management
+import blueprintRoutes from '../routes/blueprint.routes';
 
 /**
  * Initialize all application components
@@ -51,9 +53,15 @@ export const initLoaders = async (app: Application): Promise<void> => {
     
     // 6. Register routes
     console.log('📝 Registering routes...');
+    
+    // Public routes
     app.use('/health', healthRoutes);
-    // NEW: Register admin auth routes under /api/admin/auth
+    
+    // Phase 2: Admin authentication routes
     app.use('/api/admin/auth', adminAuthRoutes);
+    
+    // PHASE 3: Service blueprint management routes (admin only)
+    app.use('/api/admin/blueprints', blueprintRoutes);
     
     // 7. Health check at root (optional)
     app.get('/', (req, res) => {

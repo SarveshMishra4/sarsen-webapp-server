@@ -6,6 +6,7 @@
  * - Fetching engagements for clients and admins
  * - Updating engagement status and progress
  * - Generating engagement IDs
+ * - PHASE 9: Integrating completion and feedback workflow
  */
 
 import { Engagement, IEngagement } from '../models/Engagement.model';
@@ -13,7 +14,9 @@ import { User } from '../models/User.model';
 import { Order } from '../models/Order.model';
 import * as blueprintService from './blueprint.service';
 import * as clientAuthService from './clientAuth.service';
-import * as progressService from './progress.service'; // PHASE 8: Import progress service
+import * as progressService from './progress.service';
+import * as completionService from './completion.service'; // PHASE 9: Import completion service
+import * as feedbackService from './feedback.service'; // PHASE 9: Import feedback service
 import { logger } from '../utils/logger';
 import { ApiError } from '../middleware/error.middleware';
 import { 
@@ -24,7 +27,7 @@ import {
   isValidMilestone,
   getAllowedTransitions,
   getNextRecommendedMilestone,
-  getMilestoneLabel // FIXED: Added missing import
+  getMilestoneLabel
 } from '../constants/milestones';
 import mongoose from 'mongoose';
 
@@ -38,6 +41,15 @@ export interface CreateEngagementInput {
     lastName?: string;
     company?: string;
     phone?: string;
+  };
+}
+
+// PHASE 9: Enhanced engagement response with completion status
+export interface EngagementWithCompletion extends IEngagement {
+  completionStatus?: {
+    hasFeedback: boolean;
+    accessMode: 'full' | 'feedback-required' | 'read-only';
+    canAccess: boolean;
   };
 }
 
@@ -204,13 +216,15 @@ export const createEngagementFromPayment = async (
 };
 
 /**
- * Get engagement by ID
+ * Get engagement by ID with completion status
  * @param engagementId - Engagement ID or MongoDB _id
- * @returns Engagement with populated user data
+ * @param includeCompletionStatus - Whether to include completion status
+ * @returns Engagement with optional completion status
  */
 export const getEngagementById = async (
-  engagementId: string
-): Promise<IEngagement | null> => {
+  engagementId: string,
+  includeCompletionStatus: boolean = false
+): Promise<EngagementWithCompletion | null> => {
   try {
     // Check if it's a MongoDB ObjectId or our custom engagementId
     const isObjectId = mongoose.Types.ObjectId.isValid(engagementId);
@@ -219,9 +233,24 @@ export const getEngagementById = async (
       ? { _id: engagementId }
       : { engagementId };
     
-    return await Engagement.findOne(query)
+    const engagement = await Engagement.findOne(query)
       .populate('userId', 'email firstName lastName company')
       .populate('createdBy', 'email');
+    
+    if (!engagement || !includeCompletionStatus) {
+      return engagement;
+    }
+    
+    // PHASE 9: Add completion status
+    const completionStatus = await completionService.getCompletionStatus(
+      engagement._id.toString()
+    );
+    
+    // Convert to plain object and add completion status
+    const engagementWithStatus = engagement.toObject() as EngagementWithCompletion;
+    engagementWithStatus.completionStatus = completionStatus;
+    
+    return engagementWithStatus;
   } catch (error) {
     logger.error('Error fetching engagement by ID:', error);
     throw new ApiError(500, 'Failed to fetch engagement');
@@ -229,21 +258,40 @@ export const getEngagementById = async (
 };
 
 /**
- * Get engagements for a client
+ * Get engagements for a client with completion status
  * @param userId - User ID
- * @returns Array of engagements
+ * @param includeCompletionStatus - Whether to include completion status
+ * @returns Array of engagements with optional completion status
  */
 export const getClientEngagements = async (
-  userId: string
-): Promise<IEngagement[]> => {
+  userId: string,
+  includeCompletionStatus: boolean = false
+): Promise<EngagementWithCompletion[]> => {
   try {
     if (!userId) {
       throw new ApiError(400, 'User ID is required');
     }
     
-    return await Engagement.find({ userId })
+    const engagements = await Engagement.find({ userId })
       .sort({ createdAt: -1 })
       .select('engagementId serviceName currentProgress isCompleted messagingAllowed createdAt');
+    
+    if (!includeCompletionStatus) {
+      return engagements;
+    }
+    
+    // PHASE 9: Add completion status to each engagement
+    const engagementsWithStatus = await Promise.all(
+      engagements.map(async (eng) => {
+        const engObj = eng.toObject() as EngagementWithCompletion;
+        engObj.completionStatus = await completionService.getCompletionStatus(
+          eng._id.toString()
+        );
+        return engObj;
+      })
+    );
+    
+    return engagementsWithStatus;
   } catch (error) {
     if (error instanceof ApiError) throw error;
     logger.error('Error fetching client engagements:', error);
@@ -265,6 +313,7 @@ export const getAllEngagements = async (
     isActive?: boolean;
     isCompleted?: boolean;
     serviceCode?: string;
+    hasFeedback?: boolean; // PHASE 9: New filter
   } = {}
 ): Promise<{ engagements: IEngagement[]; total: number; pages: number }> => {
   try {
@@ -276,15 +325,29 @@ export const getAllEngagements = async (
     
     const skip = (page - 1) * limit;
     
-    const [engagements, total] = await Promise.all([
-      Engagement.find(query)
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .populate('userId', 'email firstName lastName company')
-        .populate('createdBy', 'email'),
-      Engagement.countDocuments(query),
-    ]);
+    let engagements = await Engagement.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .populate('userId', 'email firstName lastName company')
+      .populate('createdBy', 'email');
+    
+    // PHASE 9: Filter by feedback status if requested
+    if (filters.hasFeedback !== undefined) {
+      const engagementIds = engagements.map(e => e._id.toString());
+      const feedbackStatus = await Promise.all(
+        engagementIds.map(async (id) => ({
+          id,
+          hasFeedback: await feedbackService.hasFeedback(id),
+        }))
+      );
+      
+      engagements = engagements.filter((eng, index) => 
+        feedbackStatus[index].hasFeedback === filters.hasFeedback
+      );
+    }
+    
+    const total = await Engagement.countDocuments(query);
     
     return {
       engagements,
@@ -304,8 +367,6 @@ export const getAllEngagements = async (
  * @param adminId - Admin updating progress
  * @param note - Optional note
  * @returns Updated engagement
- * 
- * @deprecated Use progressService.updateProgress instead for better tracking
  */
 export const updateEngagementProgress = async (
   engagementId: string,
@@ -341,8 +402,7 @@ export const updateEngagementProgress = async (
       throw new ApiError(404, 'Engagement not found');
     }
     
-    // PHASE 8: Use progress service for validation and history
-    // This maintains backward compatibility while leveraging new system
+    // Use progress service for validation and history
     const result = await progressService.updateProgress({
       engagementId: engagement._id.toString(),
       newProgress: validatedProgress,
@@ -350,6 +410,12 @@ export const updateEngagementProgress = async (
       note,
       isAutomatic: false,
     });
+    
+    // PHASE 9: If progress is 100%, trigger completion workflow
+    if (validatedProgress === MILESTONES.COMPLETED) {
+      await completionService.handleCompletion(engagement._id.toString());
+      logger.info(`Completion workflow triggered for engagement ${engagementId}`);
+    }
     
     return result;
   } catch (error) {
@@ -360,18 +426,21 @@ export const updateEngagementProgress = async (
 };
 
 /**
- * Get dashboard summary for admin
+ * Get dashboard summary for admin with feedback stats
  * @returns Dashboard stats
  */
 export const getAdminDashboardStats = async (): Promise<any> => {
   try {
+    // PHASE 9: Get feedback stats
+    const feedbackStats = await feedbackService.getFeedbackStats({});
+    
     const [
       totalEngagements,
       activeEngagements,
       completedEngagements,
       recentEngagements,
-      // PHASE 8: Add stalled engagements count
       stalledEngagements,
+      engagementsNeedingFeedback,
     ] = await Promise.all([
       Engagement.countDocuments(),
       Engagement.countDocuments({ isActive: true, isCompleted: false }),
@@ -381,8 +450,8 @@ export const getAdminDashboardStats = async (): Promise<any> => {
         .limit(5)
         .populate('userId', 'email firstName lastName')
         .select('engagementId serviceName currentProgress isCompleted createdAt'),
-      // PHASE 8: Get stalled engagements (no progress in 7+ days)
       progressService.checkStalledEngagements(7).then(stalled => stalled.length),
+      completionService.getEngagementsNeedingFeedback().then(list => list.length),
     ]);
     
     return {
@@ -390,15 +459,20 @@ export const getAdminDashboardStats = async (): Promise<any> => {
       activeEngagements,
       completedEngagements,
       recentEngagements,
-      stalledEngagements, // PHASE 8: New metric
+      stalledEngagements,
+      // PHASE 9: New metrics
+      feedback: {
+        totalCount: feedbackStats.totalCount,
+        averageRating: feedbackStats.averageRating,
+        recommendRate: feedbackStats.recommendRate,
+        engagementsNeedingFeedback,
+      },
     };
   } catch (error) {
     logger.error('Error fetching admin dashboard stats:', error);
     throw new ApiError(500, 'Failed to fetch dashboard stats');
   }
 };
-
-// PHASE 8: New helper functions
 
 /**
  * Get next recommended milestone for an engagement
@@ -419,7 +493,7 @@ export const getNextMilestone = async (
     
     return {
       value: nextValue,
-      label: getMilestoneLabel(nextValue), // FIXED: Now properly imported
+      label: getMilestoneLabel(nextValue),
     };
   } catch (error) {
     if (error instanceof ApiError) throw error;
@@ -456,5 +530,73 @@ export const getProgressSummary = async (
   } catch (error) {
     logger.error('Error getting progress summary:', error);
     throw new ApiError(500, 'Failed to get progress summary');
+  }
+};
+
+// PHASE 9: New helper functions
+
+/**
+ * Check if engagement requires feedback
+ * @param engagementId - Engagement ID
+ * @returns Boolean indicating if feedback is required
+ */
+export const requiresFeedback = async (engagementId: string): Promise<boolean> => {
+  try {
+    const engagement = await Engagement.findById(engagementId);
+    if (!engagement) {
+      throw new ApiError(404, 'Engagement not found');
+    }
+    
+    if (!engagement.isCompleted) {
+      return false;
+    }
+    
+    const hasFeedback = await feedbackService.hasFeedback(engagementId);
+    return !hasFeedback;
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    logger.error('Error checking feedback requirement:', error);
+    throw new ApiError(500, 'Failed to check feedback requirement');
+  }
+};
+
+/**
+ * Get engagement access information for client
+ * @param engagementId - Engagement ID
+ * @param userId - User ID
+ * @returns Access information
+ */
+export const getEngagementAccess = async (
+  engagementId: string,
+  userId: string
+): Promise<{
+  canAccess: boolean;
+  accessMode: 'full' | 'feedback-required' | 'read-only';
+  requiresFeedback: boolean;
+  isCompleted: boolean;
+}> => {
+  try {
+    const engagement = await Engagement.findOne({ _id: engagementId, userId });
+    
+    if (!engagement) {
+      throw new ApiError(404, 'Engagement not found');
+    }
+    
+    const canAccess = await completionService.canAccessEngagement(engagementId, userId);
+    const accessMode = (await completionService.getAccessMode(engagementId)).mode;
+    
+    // FIXED: Renamed variable to avoid naming collision
+    const isFeedbackRequired = await requiresFeedback(engagementId);
+    
+    return {
+      canAccess,
+      accessMode,
+      requiresFeedback: isFeedbackRequired,
+      isCompleted: engagement.isCompleted,
+    };
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    logger.error('Error getting engagement access:', error);
+    throw new ApiError(500, 'Failed to get engagement access');
   }
 };

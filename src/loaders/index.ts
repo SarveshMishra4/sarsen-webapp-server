@@ -33,8 +33,10 @@ import messageRoutes from '../routes/message.routes';
 import questionnaireRoutes from '../routes/questionnaire.routes';
 // Phase 7: Resource routes for file and link sharing
 import resourceRoutes from '../routes/resource.routes';
-// PHASE 8: Progress routes for milestone tracking and analytics
+// Phase 8: Progress routes for milestone tracking and analytics
 import progressRoutes from '../routes/progress.routes';
+// PHASE 9: Feedback routes for mandatory post-completion feedback
+import feedbackRoutes from '../routes/feedback.routes';
 
 /**
  * Initialize all application components
@@ -95,8 +97,11 @@ export const initLoaders = async (app: Application): Promise<void> => {
     // Phase 7: Resource routes (admin and client)
     app.use('/api', resourceRoutes); // Contains /api/admin/resources/*, /api/client/resources/*, and /api/resources/*
     
-    // PHASE 8: Progress routes (admin and client)
+    // Phase 8: Progress routes (admin and client)
     app.use('/api', progressRoutes); // Contains /api/admin/progress/* and /api/client/engagements/*/progress
+    
+    // PHASE 9: Feedback routes (admin and client)
+    app.use('/api', feedbackRoutes); // Contains /api/client/feedback/* and /api/admin/feedback/*
     
     // 7. Health check at root (optional)
     app.get('/', (req, res) => {

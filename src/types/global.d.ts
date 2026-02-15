@@ -225,6 +225,13 @@ export interface AdminDashboardStats {
   completedEngagements: number;
   recentEngagements: EngagementData[];
   stalledEngagements: number; // Phase 8: New metric
+  // PHASE 9: Enhanced dashboard stats with feedback metrics
+  feedback?: {
+    totalCount: number;
+    averageRating: number;
+    recommendRate: number;
+    engagementsNeedingFeedback: number;
+  };
 }
 
 // Phase 6: Message-related type definitions
@@ -393,8 +400,7 @@ export interface ResourceStats {
   total: number;
 }
 
-// PHASE 8: Progress-related type definitions
-
+// Phase 8: Progress-related type definitions
 export type UpdatedByType = 'admin' | 'system';
 
 export interface ProgressHistoryEntry {
@@ -447,4 +453,114 @@ export interface StalledEngagement {
   currentProgress: MilestoneType;
   lastUpdate: Date;
   totalHistory: number;
+}
+
+// PHASE 9: Feedback-related type definitions
+
+export type FeedbackRating = 1 | 2 | 3 | 4 | 5;
+
+export interface FeedbackData {
+  id: string;
+  engagementId: string;
+  userId: string;
+  rating: FeedbackRating;
+  review?: string;
+  wouldRecommend: boolean;
+  wouldUseAgain: boolean;
+  communication?: FeedbackRating;
+  quality?: FeedbackRating;
+  timeliness?: FeedbackRating;
+  value?: FeedbackRating;
+  whatWorkedWell?: string[];
+  whatCouldBeImproved?: string[];
+  additionalComments?: string;
+  allowTestimonial: boolean;
+  testimonial?: string;
+  isHighlighted: boolean;
+  submittedAt: Date;
+  createdAt: Date;
+  updatedAt: Date;
+  // Populated fields
+  user?: {
+    id: string;
+    email: string;
+    firstName?: string;
+    lastName?: string;
+    company?: string;
+  };
+  engagement?: {
+    engagementId: string;
+    serviceName: string;
+  };
+}
+
+export interface SubmitFeedbackInput {
+  engagementId: string;
+  rating: FeedbackRating;
+  review?: string;
+  wouldRecommend: boolean;
+  wouldUseAgain: boolean;
+  communication?: FeedbackRating;
+  quality?: FeedbackRating;
+  timeliness?: FeedbackRating;
+  value?: FeedbackRating;
+  whatWorkedWell?: string[];
+  whatCouldBeImproved?: string[];
+  additionalComments?: string;
+  allowTestimonial?: boolean;
+  testimonial?: string;
+  timeSpent?: number;
+}
+
+export interface FeedbackFilters {
+  rating?: FeedbackRating;
+  startDate?: string;
+  endDate?: string;
+  isHighlighted?: boolean;
+  page?: number;
+  limit?: number;
+}
+
+export interface FeedbackStats {
+  totalCount: number;
+  averageRating: number;
+  ratingDistribution: Record<number, number>;
+  recommendRate: number;
+  wouldUseAgainRate: number;
+  averageCommunication?: number;
+  averageQuality?: number;
+  averageTimeliness?: number;
+  averageValue?: number;
+  commonPraises: string[];
+  commonImprovements: string[];
+}
+
+export interface FeedbackResponse {
+  feedback: FeedbackData[];
+  total: number;
+  pages: number;
+  stats: FeedbackStats;
+}
+
+// PHASE 9: Completion status types
+export type AccessMode = 'full' | 'feedback-required' | 'read-only';
+
+export interface CompletionStatus {
+  isCompleted: boolean;
+  hasFeedback: boolean;
+  canAccess: boolean;
+  accessMode: AccessMode;
+  completedAt?: Date;
+  feedbackSubmittedAt?: Date;
+}
+
+export interface EngagementWithCompletion extends EngagementData {
+  completionStatus?: CompletionStatus;
+}
+
+export interface EngagementAccessInfo {
+  canAccess: boolean;
+  accessMode: AccessMode;
+  requiresFeedback: boolean;
+  isCompleted: boolean;
 }

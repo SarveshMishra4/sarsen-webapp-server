@@ -7,6 +7,7 @@
  * - Updating engagement status and progress
  * - Generating engagement IDs
  * - PHASE 9: Integrating completion and feedback workflow
+ * - PHASE 10: Integrating notifications for dashboard events
  */
 
 import { Engagement, IEngagement } from '../models/Engagement.model';
@@ -15,8 +16,9 @@ import { Order } from '../models/Order.model';
 import * as blueprintService from './blueprint.service';
 import * as clientAuthService from './clientAuth.service';
 import * as progressService from './progress.service';
-import * as completionService from './completion.service'; // PHASE 9: Import completion service
-import * as feedbackService from './feedback.service'; // PHASE 9: Import feedback service
+import * as completionService from './completion.service';
+import * as feedbackService from './feedback.service';
+import * as notificationService from './notification.service'; // PHASE 10: Import notification service
 import { logger } from '../utils/logger';
 import { ApiError } from '../middleware/error.middleware';
 import { 
@@ -203,6 +205,18 @@ export const createEngagementFromPayment = async (
     
     // 9. Commit transaction
     await session.commitTransaction();
+    
+    // PHASE 10: Create notification for new engagement
+    try {
+      notificationService.onEngagementCreated({
+        _id: engagement[0]._id,
+        engagementId: engagement[0].engagementId,
+        serviceName: engagement[0].serviceName,
+      });
+    } catch (notifError) {
+      // Non-critical - don't fail the transaction
+      logger.error('Failed to create engagement notification:', notifError);
+    }
     
     logger.info(`Engagement created successfully: ${engagementId} for user: ${email}`);
     
@@ -415,6 +429,17 @@ export const updateEngagementProgress = async (
     if (validatedProgress === MILESTONES.COMPLETED) {
       await completionService.handleCompletion(engagement._id.toString());
       logger.info(`Completion workflow triggered for engagement ${engagementId}`);
+      
+      // PHASE 10: Create notification for engagement completion
+      try {
+        notificationService.onEngagementCompleted({
+          _id: engagement._id,
+          engagementId: engagement.engagementId,
+          serviceName: engagement.serviceName,
+        });
+      } catch (notifError) {
+        logger.error('Failed to create completion notification:', notifError);
+      }
     }
     
     return result;
@@ -453,6 +478,19 @@ export const getAdminDashboardStats = async (): Promise<any> => {
       progressService.checkStalledEngagements(7).then(stalled => stalled.length),
       completionService.getEngagementsNeedingFeedback().then(list => list.length),
     ]);
+    
+    // PHASE 10: Check for stalled engagements and create notifications
+    if (stalledEngagements > 0) {
+      // This would be better handled by a cron job, but for completeness:
+      try {
+        const stalledList = await progressService.checkStalledEngagements(7);
+        stalledList.forEach(engagement => {
+          notificationService.onStalledEngagement(engagement);
+        });
+      } catch (notifError) {
+        logger.error('Failed to create stalled engagement notifications:', notifError);
+      }
+    }
     
     return {
       totalEngagements,

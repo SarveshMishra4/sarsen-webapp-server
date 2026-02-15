@@ -455,8 +455,7 @@ export interface StalledEngagement {
   totalHistory: number;
 }
 
-// PHASE 9: Feedback-related type definitions
-
+// Phase 9: Feedback-related type definitions
 export type FeedbackRating = 1 | 2 | 3 | 4 | 5;
 
 export interface FeedbackData {
@@ -542,7 +541,7 @@ export interface FeedbackResponse {
   stats: FeedbackStats;
 }
 
-// PHASE 9: Completion status types
+// Phase 9: Completion status types
 export type AccessMode = 'full' | 'feedback-required' | 'read-only';
 
 export interface CompletionStatus {
@@ -563,4 +562,196 @@ export interface EngagementAccessInfo {
   accessMode: AccessMode;
   requiresFeedback: boolean;
   isCompleted: boolean;
+}
+
+// PHASE 10: Dashboard and Notification related type definitions
+
+export type NotificationType = 
+  | 'engagement.created'
+  | 'engagement.completed'
+  | 'questionnaire.submitted'
+  | 'questionnaire.overdue'
+  | 'feedback.received'
+  | 'message.unread'
+  | 'engagement.stalled'
+  | 'payment.received'
+  | 'system.alert';
+
+export type NotificationSeverity = 'info' | 'warning' | 'success' | 'error';
+
+export interface Notification {
+  id: string;
+  type: NotificationType;
+  title: string;
+  message: string;
+  severity: NotificationSeverity;
+  data?: any;
+  read: boolean;
+  createdAt: Date;
+  expiresAt?: Date;
+}
+
+export interface DashboardFilters {
+  startDate?: Date;
+  endDate?: Date;
+  serviceCode?: string;
+}
+
+export interface EngagementMetrics {
+  total: number;
+  active: number;
+  completed: number;
+  stalled: number;
+  needingFeedback: number;
+  completionRate: number;
+  averageProgress: number;
+}
+
+export interface RevenueMetrics {
+  total: number;
+  monthly: number;
+  quarterly: number;
+  yearly: number;
+  averageOrderValue: number;
+  projectedAnnual: number;
+}
+
+export interface UserMetrics {
+  total: number;
+  newThisMonth: number;
+  returning: number;
+  retentionRate: number;
+  averageEngagementsPerUser: number;
+}
+
+export interface CommunicationMetrics {
+  totalMessages: number;
+  unreadMessages: number;
+  averagePerEngagement: number;
+  messagesByType: {
+    admin: number;
+    client: number;
+  };
+}
+
+export interface ResourceMetrics {
+  total: number;
+  totalDownloads: number;
+  totalViews: number;
+  averageEngagement: number;
+  byType: Record<string, number>;
+}
+
+export interface QuestionnaireMetrics {
+  total: number;
+  pending: number;
+  overdue: number;
+  completed: number;
+  completionRate: number;
+  averageTimeToComplete: number;
+}
+
+export interface FeedbackMetrics {
+  total: number;
+  averageRating: number;
+  distribution: Record<number, number>;
+  positive: number;
+  neutral: number;
+  negative: number;
+  recommendationRate: number;
+  wouldUseAgainRate: number;
+}
+
+export interface TopService {
+  serviceCode: string;
+  serviceName: string;
+  engagementCount: number;
+  revenue: number;
+  averageRating?: number;
+}
+
+export interface TopRatedService {
+  serviceCode: string;
+  serviceName: string;
+  averageRating: number;
+  feedbackCount: number;
+}
+
+export interface DashboardResponse {
+  realtime: boolean;
+  snapshotDate: Date;
+  metrics: {
+    engagements: EngagementMetrics;
+    revenue: RevenueMetrics;
+    users: UserMetrics;
+    communication: CommunicationMetrics;
+    resources: ResourceMetrics;
+    questionnaires: QuestionnaireMetrics;
+    feedback: FeedbackMetrics;
+  };
+  trends: {
+    engagements: { date: Date; count: number }[];
+    revenue: { date: Date; amount: number }[];
+  };
+  topPerformers: {
+    services: TopService[];
+    rated: TopRatedService[];
+  };
+}
+
+export interface DashboardSummary {
+  realtime: boolean;
+  snapshotDate: Date;
+  summary: {
+    totalEngagements: number;
+    activeEngagements: number;
+    completedEngagements: number;
+    stalledEngagements: number;
+    totalRevenue: number;
+    monthlyRevenue: number;
+    totalClients: number;
+    unreadMessages: number;
+    pendingQuestionnaires: number;
+    averageRating: number;
+  };
+}
+
+export interface DashboardStatsData {
+  snapshotDate: Date;
+  totalEngagements: number;
+  activeEngagements: number;
+  completedEngagements: number;
+  stalledEngagements: number;
+  engagementsNeedingFeedback: number;
+  totalRevenue: number;
+  monthlyRevenue: number;
+  quarterlyRevenue: number;
+  yearlyRevenue: number;
+  averageOrderValue: number;
+  totalClients: number;
+  newClientsThisMonth: number;
+  returningClients: number;
+  totalMessages: number;
+  unreadMessages: number;
+  averageMessagesPerEngagement: number;
+  totalResources: number;
+  totalDownloads: number;
+  totalViews: number;
+  totalQuestionnaires: number;
+  pendingQuestionnaires: number;
+  overdueQuestionnaires: number;
+  averageCompletionRate: number;
+  averageRating: number;
+  totalFeedback: number;
+  positiveFeedbackCount: number;
+  negativeFeedbackCount: number;
+  neutralFeedbackCount: number;
+  recommendationRate: number;
+  engagementsTrend: { date: Date; count: number }[];
+  revenueTrend: { date: Date; amount: number }[];
+  topPerformingServices: TopService[];
+  topRatedServices: TopRatedService[];
+  cacheDuration: number;
+  createdAt: Date;
+  updatedAt: Date;
 }

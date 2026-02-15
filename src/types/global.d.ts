@@ -131,8 +131,7 @@ export interface ClientAuthRequest {
   engagementId?: string;
 }
 
-// PHASE 5: Engagement and Order related type definitions
-
+// Phase 5: Engagement and Order related type definitions
 export type OrderStatus = 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED';
 
 export interface EngagementMilestone {
@@ -225,4 +224,63 @@ export interface AdminDashboardStats {
   activeEngagements: number;
   completedEngagements: number;
   recentEngagements: EngagementData[];
+}
+
+// PHASE 6: Message-related type definitions
+
+export type SenderType = 'admin' | 'client';
+
+export interface MessageAttachment {
+  type: string;
+  url: string;
+  name: string;
+  size?: number;
+}
+
+export interface MessageData {
+  id: string;
+  engagementId: string;
+  senderId: string;
+  senderType: SenderType;
+  senderName?: string;
+  content: string;
+  attachments?: MessageAttachment[];
+  isRead: boolean;
+  readBy?: {
+    userId: string;
+    readAt: Date;
+  }[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface SendMessageInput {
+  engagementId: string;
+  content: string;
+  attachments?: MessageAttachment[];
+}
+
+export interface MessageFilters {
+  page?: number;
+  limit?: number;
+  before?: string;
+  after?: string;
+}
+
+export interface MessagesResponse {
+  messages: MessageData[];
+  total: number;
+  unreadCount: number;
+}
+
+export interface RecentMessageItem {
+  id: string;
+  content: string;
+  senderType: SenderType;
+  senderName?: string;
+  createdAt: Date;
+  engagement: {
+    engagementId: string;
+    serviceName: string;
+  };
 }

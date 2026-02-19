@@ -5,19 +5,33 @@
  * It imports the configured app from app.ts and starts listening.
  */
 
-import app from './app';
+import app, { startApp } from './app';
 import { env } from './config/env';
 import { logger } from './utils/logger';
 
 const PORT = env.PORT;
 
+// Declare server in outer scope so shutdown can access it
+let server: ReturnType<typeof app.listen>;
+
 /**
  * Start the server
  */
-const server = app.listen(PORT, () => {
-  logger.info(`🚀 Server is running on port ${PORT}`);
-  logger.info(`📝 Environment: ${env.NODE_ENV}`);
-  logger.info(`🔗 Health check: http://localhost:${PORT}/health`);
+const startServer = async () => {
+  // Wait for app initialization
+  await startApp();
+
+  server = app.listen(PORT, () => {
+    logger.info(`🚀 Server is running on port ${PORT}`);
+    logger.info(`📝 Environment: ${env.NODE_ENV}`);
+    logger.info(`🔗 Health check: http://localhost:${PORT}/health`);
+  });
+};
+
+// Start server
+startServer().catch((error) => {
+  logger.error('❌ Failed to start server:', error);
+  process.exit(1);
 });
 
 /**
@@ -26,6 +40,11 @@ const server = app.listen(PORT, () => {
 const gracefulShutdown = async (signal: string): Promise<void> => {
   logger.info(`⚠️ Received ${signal}, shutting down gracefully...`);
   
+  if (!server) {
+    logger.warn('Server not started yet. Exiting.');
+    process.exit(0);
+  }
+
   server.close(() => {
     logger.info('HTTP server closed');
     process.exit(0);

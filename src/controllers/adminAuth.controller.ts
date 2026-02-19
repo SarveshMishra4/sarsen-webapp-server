@@ -11,7 +11,7 @@
 import { Request, Response, NextFunction } from 'express';
 import * as adminAuthService from '../services/adminAuth.service';
 import { validateLoginRequest, validateCreateAdminRequest } from '../validators/adminAuth.validator';
-// import { logger } from '../utils/logger';
+import { logger } from '../utils/logger';
 import { ApiError } from '../middleware/error.middleware';
 
 /**

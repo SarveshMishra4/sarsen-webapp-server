@@ -13,7 +13,6 @@ const app = express();
 export const startApp = async () => {
   try {
     await initLoaders(app);
-    return app;
   } catch (error) {
     console.error('❌ Failed to start application:', error);
     process.exit(1);

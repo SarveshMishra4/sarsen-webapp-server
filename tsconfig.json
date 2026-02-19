@@ -23,8 +23,9 @@
     // ADD THIS LINE - tells TypeScript to include our type definitions
     "typeRoots": ["./node_modules/@types", "./src/types"]
   },
-  "include": ["src/**/*"],
+  // "include": ["src/**/*"],
   // ADD THIS - explicitly include the types directory
-  "files": ["src/types/global.d.ts"],
+  // "files": ["src/types/global.d.ts"],
+  "include": ["src/**/*", "src/types/**/*.d.ts"],
   "exclude": ["node_modules", "dist"]
 }

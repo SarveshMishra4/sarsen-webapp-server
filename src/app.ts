@@ -10,10 +10,14 @@ import { initLoaders } from './loaders';
 
 const app = express();
 
-// Initialize all application components
-initLoaders(app).catch(error => {
-  console.error('❌ Failed to start application:', error);
-  process.exit(1);
-});
+export const startApp = async () => {
+  try {
+    await initLoaders(app);
+    return app;
+  } catch (error) {
+    console.error('❌ Failed to start application:', error);
+    process.exit(1);
+  }
+};
 
 export default app;

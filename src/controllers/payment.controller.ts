@@ -62,31 +62,39 @@ export const verifyPayment = async (
     const order = await paymentService.verifyPayment(paymentData);
     
     // Create engagement from payment
-    const engagement = await engagementService.createEngagementFromPayment({
-      orderId: order.orderId,
-      email: order.email,
-      serviceCode: order.serviceCode,
-      userData: {
-        firstName: order.firstName,
-        lastName: order.lastName,
-        company: order.company,
-        phone: order.phone,
-      },
-    });
-    
-    logger.info(`Engagement created from payment: ${order.orderId}`);
-    
-    res.status(200).json({
-      success: true,
-      message: 'Payment verified and engagement created successfully',
-      data: {
-        order,
-        engagement: {
-          id: engagement.id,
-          engagementId: engagement.engagementId,
-        },
-      },
-    });
+const result = await engagementService.createEngagementFromPayment({
+  orderId: order.orderId,
+  email: order.email,
+  serviceCode: order.serviceCode,
+  userData: {
+    firstName: order.firstName,
+    lastName: order.lastName,
+    company: order.company,
+    phone: order.phone,
+  },
+});
+
+const { engagement, tempPassword, isNewUser } = result;
+
+logger.info(`Engagement created from payment: ${order.orderId}`);
+
+res.status(200).json({
+  success: true,
+  message: 'Payment verified and engagement created successfully',
+  data: {
+    order,
+    engagement: {
+      id: engagement.id,
+      engagementId: engagement.engagementId,
+    },
+    credentials: isNewUser
+      ? {
+          email: order.email,
+          password: tempPassword,
+        }
+      : null,
+  },
+});
   } catch (error) {
     next(error);
   }

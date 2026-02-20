@@ -89,7 +89,11 @@ export const generateEngagementId = async (): Promise<string> => {
  */
 export const createEngagementFromPayment = async (
   input: CreateEngagementInput
-): Promise<IEngagement> => {
+): Promise<{
+  engagement: IEngagement;
+  tempPassword?: string;
+  isNewUser: boolean;
+}> => {
   const session = await mongoose.startSession();
   session.startTransaction();
   
@@ -109,11 +113,17 @@ export const createEngagementFromPayment = async (
     // 2. Get or create user
     let userId = input.userId;
     let isNewUser = false;
+
+    // ✅ ADDED: store temporary password outside block
+    let generatedTempPassword: string | undefined;
     
     if (!userId) {
       // Generate a secure random password for new user
       const { generateSecurePassword } = await import('../utils/token.util');
       const tempPassword = generateSecurePassword();
+
+      // ✅ ADDED: assign to outer variable
+      generatedTempPassword = tempPassword;
       
       // Create user
       const user = await clientAuthService.createClientUser(
@@ -220,7 +230,13 @@ export const createEngagementFromPayment = async (
     
     logger.info(`Engagement created successfully: ${engagementId} for user: ${email}`);
     
-    return engagement[0];
+    // ✅ MODIFIED RETURN: include credentials info
+    return {
+  engagement: engagement[0],
+  tempPassword: isNewUser ? generatedTempPassword : undefined,
+  isNewUser,
+};
+    
   } catch (error) {
     await session.abortTransaction();
     throw error;

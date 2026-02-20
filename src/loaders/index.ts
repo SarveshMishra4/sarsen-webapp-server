@@ -39,6 +39,7 @@ import progressRoutes from '../routes/progress.routes';
 import feedbackRoutes from '../routes/feedback.routes';
 // PHASE 10: Dashboard routes for admin overview and notifications
 import dashboardRoutes from '../routes/dashboard.routes';
+import publicRoutes from '../routes/public.routes';
 
 /**
  * Initialize all application components
@@ -46,17 +47,17 @@ import dashboardRoutes from '../routes/dashboard.routes';
 export const initLoaders = async (app: Application): Promise<void> => {
   try {
     console.log('🚀 Initializing application...');
-    
+
     // 1. Validate environment variables
     validateEnv();
-    
+
     // 2. Connect to database
     await connectDB();
-    
+
     // 3. Setup basic middleware
     app.use(express.json({ limit: '10mb' }));
     app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-    
+
     // 4. Setup CORS
     // TODO: Phase 0 Decision - Frontend URL will be confirmed during integration
     app.use(cors({
@@ -65,54 +66,57 @@ export const initLoaders = async (app: Application): Promise<void> => {
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization'],
     }));
-    
+
     // 5. Request logging
     app.use(requestLogger);
-    
+
     // 6. Register routes
     console.log('📝 Registering routes...');
-    
+
     // Public routes
     app.use('/health', healthRoutes);
-    
+
     // Phase 2: Admin authentication routes
     app.use('/api/admin/auth', adminAuthRoutes);
-    
+
     // Phase 3: Service blueprint management routes (admin only)
     app.use('/api/admin/blueprints', blueprintRoutes);
-    
+
     // Phase 4: Client authentication routes (engagement-scoped)
     app.use('/api/client/auth', clientAuthRoutes);
-    
+
     // Phase 5: Engagement routes (client and admin)
     app.use('/api', engagementRoutes); // Contains /api/client/engagements and /api/admin/engagements
-    
+
     // Phase 5: Payment routes (public and admin)
     app.use('/api', paymentRoutes); // Contains /api/payments/* and /api/admin/payments/*
-    
+
     // Phase 6: Message routes (client and admin messaging)
     app.use('/api', messageRoutes); // Contains /api/messages/* and /api/admin/messages/*
-    
+
     // Phase 7: Questionnaire routes (admin and client)
     app.use('/api', questionnaireRoutes); // Contains /api/admin/questionnaires/* and /api/client/questionnaires/*
-    
+
     // Phase 7: Resource routes (admin and client)
     app.use('/api', resourceRoutes); // Contains /api/admin/resources/*, /api/client/resources/*, and /api/resources/*
-    
+
     // Phase 8: Progress routes (admin and client)
     app.use('/api', progressRoutes); // Contains /api/admin/progress/* and /api/client/engagements/*/progress
-    
+
     // Phase 9: Feedback routes (admin and client)
     app.use('/api', feedbackRoutes); // Contains /api/client/feedback/* and /api/admin/feedback/*
-    
+
     // PHASE 10: Dashboard routes (admin only)
     app.use('/api/admin', dashboardRoutes); // Contains /api/admin/dashboard/* and /api/admin/notifications/*
-    
+
     // 7. Health check at root (optional)
     app.get('/', (req, res) => {
       res.redirect('/health');
     });
-    
+
+    // Public routes (no authentication required)
+    app.use('/api/public', publicRoutes);
+
     // 8. 404 handler for undefined routes
     app.use('*', (req, res) => {
       res.status(404).json({
@@ -120,12 +124,12 @@ export const initLoaders = async (app: Application): Promise<void> => {
         message: `Cannot ${req.method} ${req.originalUrl}`,
       });
     });
-    
+
     // 9. Global error handler (must be last)
     app.use(errorHandler);
-    
+
     console.log('✅ Application initialized successfully');
-    
+
   } catch (error) {
     console.error('❌ Failed to initialize application:', error);
     throw error;

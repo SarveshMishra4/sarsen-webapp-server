@@ -10,7 +10,7 @@ export const validateService = async (
   req: Request,
   res: Response,
   next: NextFunction
-) => {
+): Promise<void> => {
   try {
     const { slug } = req.params;
     
@@ -21,13 +21,14 @@ export const validateService = async (
     }).select('serviceCode serviceName serviceSlug isActive');
     
     if (!blueprint) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         message: 'Service not found or inactive'
       });
+      return; // 👈 Important: return after sending response
     }
     
-    return res.status(200).json({
+    res.status(200).json({
       success: true,
       data: {
         exists: true,
@@ -35,10 +36,11 @@ export const validateService = async (
         serviceCode: blueprint.serviceCode,
         serviceName: blueprint.serviceName,
         serviceSlug: blueprint.serviceSlug
-        // Note: Price is not in your blueprint model yet
       }
     });
+    return; // 👈 Optional but good practice
   } catch (error) {
-    next(error);
+    next(error); // Pass error to error handler
+    return; // 👈 Important: return after calling next
   }
 };

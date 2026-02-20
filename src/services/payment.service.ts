@@ -14,6 +14,7 @@ import { Order, IOrder, OrderStatus } from '../models/Order.model';
 import { logger } from '../utils/logger';
 import { ApiError } from '../middleware/error.middleware';
 import { generateReceiptId } from '../utils/token.util'; // FIXED: Now this export exists
+import { ServiceBlueprint } from '../models/ServiceBlueprint.model';
 
 // Initialize Razorpay instance
 const razorpay = new Razorpay({
@@ -66,6 +67,18 @@ export const createOrder = async (
       metadata = {},
     } = input;
     
+    // 🔴 ADD THIS VALIDATION HERE (around line 40-45)
+    // Validate that the service actually exists in the database
+    const blueprint = await ServiceBlueprint.findOne({
+      serviceCode: serviceCode.toUpperCase(),
+      isActive: true
+    });
+    
+    if (!blueprint) {
+      throw new ApiError(404, `Service ${serviceCode} not found or is inactive`);
+    }
+    // ✅ END OF VALIDATION
+    
     // Calculate final amount after discount
     const finalAmount = amount - discountAmount;
     
@@ -73,6 +86,7 @@ export const createOrder = async (
       throw new ApiError(400, 'Final amount must be greater than zero');
     }
     
+    // Rest of your code continues exactly as is...
     // Generate unique receipt ID
     const receipt = generateReceiptId();
     
@@ -98,7 +112,7 @@ export const createOrder = async (
       company,
       phone,
       serviceCode,
-      serviceName,
+      serviceName, // You can keep this as is for now
       amount,
       currency,
       couponCode,
@@ -121,6 +135,7 @@ export const createOrder = async (
     };
   } catch (error) {
     logger.error('Error creating order:', error);
+    if (error instanceof ApiError) throw error;
     throw new ApiError(500, 'Failed to create payment order');
   }
 };

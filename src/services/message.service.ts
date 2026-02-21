@@ -90,14 +90,14 @@ export const sendMessage = async (
 
     // 5. Create message
     const [message] = await Message.create([{
-      engagementId,
-      senderId,
-      senderType,
-      senderName,
-      content,
-      attachments,
-      isRead: false,
-    }], { session });
+  engagementId: engagement._id,   // ✅ FIXED
+  senderId,
+  senderType,
+  senderName,
+  content,
+  attachments,
+  isRead: false,
+}], { session });
 
     // 6. Increment message count on engagement
     engagement.messageCount = (engagement.messageCount || 0) + 1;

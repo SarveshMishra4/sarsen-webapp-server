@@ -86,10 +86,7 @@ const MessageSchema = new Schema<IMessage>(
         type: Number,
       },
     }],
-    isRead: {
-      type: Boolean,
-      default: false,
-    },
+    
     readBy: [{
       userId: {
         type: Schema.Types.ObjectId,
@@ -112,7 +109,6 @@ const MessageSchema = new Schema<IMessage>(
 
 // Indexes for faster queries
 MessageSchema.index({ engagementId: 1, createdAt: -1 }); // For fetching messages in reverse chronological order
-MessageSchema.index({ engagementId: 1, isRead: 1 }); // For unread count queries
 MessageSchema.index({ senderId: 1, createdAt: -1 }); // For user's message history
 
 export const Message = mongoose.model<IMessage>('Message', MessageSchema);

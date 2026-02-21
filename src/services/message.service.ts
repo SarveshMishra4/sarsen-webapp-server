@@ -47,7 +47,7 @@ export const sendMessage = async (
 ): Promise<IMessage> => {
   const { engagementId, senderId, senderType, content, attachments } = input;
   console.log("SENDER ID RECEIVED:", senderId);
-console.log("TYPE OF SENDER ID:", typeof senderId);
+  console.log("TYPE OF SENDER ID:", typeof senderId);
 
   // 1. Get engagement
   const engagement = await Engagement.findOne({ engagementId });
@@ -91,7 +91,12 @@ console.log("TYPE OF SENDER ID:", typeof senderId);
     senderName,
     content,
     attachments,
-    isRead: false,
+    readBy: [
+      {
+        userId: new mongoose.Types.ObjectId(senderId),
+        readAt: new Date(),
+      },
+    ],
   });
 
   // 4. Increment message count
@@ -150,10 +155,10 @@ export const getMessages = async (
 
     // Get unread count for this engagement
     const unreadCount = await Message.countDocuments({
-  engagementId: engagement._id,
-  isRead: false,
-  senderId: { $ne: viewerId },
-});
+      engagementId: engagement._id,
+      isRead: false,
+      senderId: { $ne: viewerId },
+    });
 
     // If viewer is provided, mark messages as read
     if (viewerId && viewerType && messages.length > 0) {
@@ -208,19 +213,24 @@ export const markAsRead = async (
 
     const query: any = {
       engagementId: engagement._id,
-      isRead: false,
-      senderId: { $ne: userId },
+      senderId: { $ne: new mongoose.Types.ObjectId(userId) },
+      readBy: {
+        $not: {
+          $elemMatch: {
+            userId: new mongoose.Types.ObjectId(userId),
+          },
+        },
+      },
     };
 
     if (messageIds && messageIds.length > 0) {
-      query._id = { $in: messageIds };
+      query._id = { $in: messageIds.map(id => new mongoose.Types.ObjectId(id)) };
     }
 
     const result = await Message.updateMany(
       query,
       {
-        $set: { isRead: true },
-        $push: {
+        $addToSet: {
           readBy: {
             userId: new mongoose.Types.ObjectId(userId),
             readAt: new Date(),
@@ -228,6 +238,16 @@ export const markAsRead = async (
         },
       }
     );
+
+    logger.info(
+      `Marked ${result.modifiedCount} messages as read in engagement ${engagementId}`
+    );
+
+    if (messageIds && messageIds.length > 0) {
+      query._id = { $in: messageIds };
+    }
+
+
 
     logger.info(`Marked ${result.modifiedCount} messages as read in engagement ${engagementId}`);
   } catch (error) {
@@ -255,8 +275,14 @@ export const getUnreadCount = async (
 
     return await Message.countDocuments({
       engagementId: engagement._id,
-      isRead: false,
-      senderId: { $ne: userId },
+      senderId: { $ne: new mongoose.Types.ObjectId(userId) },
+      readBy: {
+        $not: {
+          $elemMatch: {
+            userId: new mongoose.Types.ObjectId(userId),
+          },
+        },
+      },
     });
   } catch (error) {
     logger.error('Error getting unread count:', error);

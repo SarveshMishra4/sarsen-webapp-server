@@ -4,10 +4,11 @@
  * Protects client routes by verifying JWT token.
  * Attaches client info to request object if valid.
  * Ensures client can only access their own engagement.
- */
+*/
 
 import { Request, Response, NextFunction } from 'express';
 import { verifyClientAccessToken } from '../services/token.service'; // CHANGED: Use client-specific verifier
+import { Engagement } from '../models/Engagement.model'; // ADD THIS
 import { User } from '../models/User.model';
 import { ApiError } from './error.middleware';
 import { logger } from '../utils/logger';
@@ -24,13 +25,13 @@ export const clientAuthMiddleware = async (
   try {
     // Get token from Authorization header
     const authHeader = req.headers.authorization;
-    
+
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       throw new ApiError(401, 'Authentication required. Please provide a valid token.');
     }
-    
+
     const token = authHeader.substring(7); // Remove 'Bearer ' prefix
-    
+
     // Verify token using client-specific verifier
     let decoded;
     try {
@@ -47,29 +48,29 @@ export const clientAuthMiddleware = async (
       }
       throw new ApiError(401, 'Authentication failed');
     }
-    
+
     // No need to check role here - verifyClientAccessToken already ensures it's CLIENT
-    
+
     // Verify user still exists and is active
     const user = await User.findById(decoded.id);
-    
+
     if (!user) {
       logger.warn(`Token used for non-existent user: ${decoded.id}`);
       throw new ApiError(401, 'User account not found');
     }
-    
+
     if (!user.isActive) {
       logger.warn(`Token used for deactivated user: ${decoded.email}`);
       throw new ApiError(403, 'Account is deactivated. Please contact support.');
     }
-    
+
     // Attach client to request
     req.client = {
       id: user.id,
       email: user.email,
       engagementId: decoded.engagementId, // Now properly typed
     };
-    
+
     next();
   } catch (error) {
     next(error);
@@ -85,36 +86,45 @@ export const requireEngagementAccess = (paramName: string = 'engagementId') => {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const engagementId = req.params[paramName];
-      
+
       if (!engagementId) {
         throw new ApiError(400, 'Engagement ID is required');
       }
-      
+
       // Check if client is authenticated
       if (!req.client) {
         throw new ApiError(401, 'Authentication required');
       }
-      
+
       // Get user with engagements
       const user = await User.findById(req.client.id).select('engagements');
-      
+
       if (!user) {
         throw new ApiError(404, 'User not found');
       }
-      
+
       // Check if user has access to this engagement
+
+      // Find engagement by public engagementId
+      const engagement = await Engagement.findOne({ engagementId });
+
+      if (!engagement) {
+        throw new ApiError(404, 'Engagement not found');
+      }
+
+      // Now compare using Mongo _id
       const hasAccess = user.engagements.some(
-        (id) => id.toString() === engagementId
+        (id) => id.toString() === engagement._id.toString()
       );
-      
+
       if (!hasAccess) {
         logger.warn(`User ${req.client.id} attempted to access unauthorized engagement: ${engagementId}`);
         throw new ApiError(403, 'You do not have access to this engagement');
       }
-      
+
       // Attach engagement ID to request for downstream use
       req.client.engagementId = engagementId;
-      
+
       next();
     } catch (error) {
       next(error);
@@ -133,16 +143,16 @@ export const optionalClientAuthMiddleware = async (
 ): Promise<void> => {
   try {
     const authHeader = req.headers.authorization;
-    
+
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.substring(7);
-      
+
       try {
         // CHANGED: Use verifyClientAccessToken here as well
         const decoded = verifyClientAccessToken(token);
-        
+
         const user = await User.findById(decoded.id);
-        
+
         if (user && user.isActive) {
           req.client = {
             id: user.id,
@@ -154,7 +164,7 @@ export const optionalClientAuthMiddleware = async (
         // Ignore token errors for optional auth
       }
     }
-    
+
     next();
   } catch (error) {
     next(error);

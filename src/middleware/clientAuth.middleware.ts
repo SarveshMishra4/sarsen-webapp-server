@@ -70,6 +70,7 @@ export const clientAuthMiddleware = async (
       email: user.email,
       engagementId: decoded.engagementId, // Now properly typed
     };
+    console.log("REQ.CLIENT SET AS:", req.client);
 
     next();
   } catch (error) {

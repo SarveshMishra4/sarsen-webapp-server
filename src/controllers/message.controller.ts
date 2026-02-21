@@ -200,7 +200,7 @@ export const getUnreadCount = async (
     } else {
       throw new ApiError(401, 'Authentication required');
     }
-    
+    console.log("VIEWER ID GOING TO SERVICE:", viewerId);
     // Validate engagement ID
     
     

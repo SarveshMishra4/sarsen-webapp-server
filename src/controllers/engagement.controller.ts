@@ -10,6 +10,7 @@ import * as engagementService from '../services/engagement.service';
 import { validateEngagementId, validateProgressUpdate } from '../validators/engagement.validator';
 import { ApiError } from '../middleware/error.middleware';
 import { logger } from '../utils/logger';
+import { Engagement } from '../models/Engagement.model';
 
 /**
  * Get engagement by ID
@@ -23,16 +24,25 @@ export const getEngagement = async (
 ): Promise<void> => {
   try {
     const { engagementId } = req.params;
-    
+
     // Validate engagement ID format
     validateEngagementId(engagementId);
-    
-    const engagement = await engagementService.getEngagementById(engagementId);
-    
+
+    let engagement;
+
+    if (req.client) {
+      engagement = await Engagement.findOne({
+        engagementId,
+        userId: req.client.id,
+      });
+    } else {
+      engagement = await engagementService.getEngagementById(engagementId);
+    }
+
     if (!engagement) {
       throw new ApiError(404, 'Engagement not found');
     }
-    
+
     // Check access rights
     if (req.client) {
       // Client access - verify they own this engagement
@@ -44,7 +54,7 @@ export const getEngagement = async (
       throw new ApiError(401, 'Authentication required');
     }
     // Admin access - allowed (already authenticated via admin middleware)
-    
+
     res.status(200).json({
       success: true,
       data: { engagement },
@@ -68,9 +78,9 @@ export const getMyEngagements = async (
     if (!req.client) {
       throw new ApiError(401, 'Authentication required');
     }
-    
+
     const engagements = await engagementService.getClientEngagements(req.client.id);
-    
+
     res.status(200).json({
       success: true,
       data: { engagements },
@@ -94,14 +104,14 @@ export const getAllEngagements = async (
   try {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 20;
-    
+
     const filters: any = {};
     if (req.query.isActive !== undefined) filters.isActive = req.query.isActive === 'true';
     if (req.query.isCompleted !== undefined) filters.isCompleted = req.query.isCompleted === 'true';
     if (req.query.serviceCode) filters.serviceCode = req.query.serviceCode as string;
-    
+
     const result = await engagementService.getAllEngagements(page, limit, filters);
-    
+
     res.status(200).json({
       success: true,
       data: result,
@@ -125,17 +135,17 @@ export const updateProgress = async (
     if (!req.admin) {
       throw new ApiError(401, 'Admin authentication required');
     }
-    
+
     const { engagementId } = req.params;
     const { progress, note } = validateProgressUpdate(req.body);
-    
+
     const engagement = await engagementService.updateEngagementProgress(
       engagementId,
       progress,
       req.admin.id,
       note
     );
-    
+
     res.status(200).json({
       success: true,
       message: 'Progress updated successfully',
@@ -160,9 +170,9 @@ export const getAdminDashboard = async (
     if (!req.admin) {
       throw new ApiError(401, 'Admin authentication required');
     }
-    
+
     const stats = await engagementService.getAdminDashboardStats();
-    
+
     res.status(200).json({
       success: true,
       data: stats,

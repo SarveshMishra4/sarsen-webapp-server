@@ -163,10 +163,10 @@ export const getMessages = async (
 
     // Get unread count for this engagement
     const unreadCount = await Message.countDocuments({
-      engagementId,
-      isRead: false,
-      senderId: { $ne: viewerId }, // Messages sent by others
-    });
+  engagementId: engagement._id,
+  isRead: false,
+  senderId: { $ne: viewerId },
+});
 
     // If viewer is provided, mark messages as read
     if (viewerId && viewerType && messages.length > 0) {

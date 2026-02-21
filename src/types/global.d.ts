@@ -180,6 +180,22 @@ export interface EngagementData {
   updatedAt: Date;
 }
 
+export interface EngagementSummary {
+  id: string;
+  engagementId: string;
+  serviceCode: string;
+  serviceName: string;
+  currentProgress: MilestoneType;
+  isCompleted: boolean;
+  isActive: boolean;
+  messagingAllowed: boolean;
+  messageCount: number;
+  resourceCount: number;
+  questionnaireCount: number;
+  startDate: Date;
+  updatedAt: Date;
+}
+
 export interface OrderData {
   orderId: string;
   receipt: string;

@@ -166,20 +166,27 @@ export const getMessages = async (
         .filter(m => m.senderId.toString() !== viewerId) // Don't mark own messages
         .map(m => m._id);
 
-      if (messageIds.length > 0) {
-        await Message.updateMany(
-          { _id: { $in: messageIds } },
-          {
-            $set: { isRead: true },
-            $push: {
-              readBy: {
+      await Message.updateMany(
+        {
+          _id: { $in: messageIds },
+          readBy: {
+            $not: {
+              $elemMatch: {
                 userId: new mongoose.Types.ObjectId(viewerId),
-                readAt: new Date(),
               },
             },
-          }
-        );
-      }
+          },
+        },
+        {
+          $addToSet: {
+            readBy: {
+              userId: new mongoose.Types.ObjectId(viewerId),
+              readAt: new Date(),
+            },
+          },
+        }
+      );
+
     }
 
     return {

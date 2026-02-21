@@ -38,13 +38,12 @@ export const validateSendMessage = (body: any): SendMessageRequest => {
   }
 
   // Validate engagementId
-  if (!body.engagementId) {
-    errors.push('Engagement ID is required');
-  } else if (typeof body.engagementId !== 'string') {
-    errors.push('Engagement ID must be a string');
-  } else if (!mongoose.Types.ObjectId.isValid(body.engagementId)) {
-    errors.push('Invalid engagement ID format');
-  }
+  // Validate engagementId
+if (!body.engagementId) {
+  errors.push('Engagement ID is required');
+} else if (typeof body.engagementId !== 'string') {
+  errors.push('Engagement ID must be a string');
+}
 
   // Validate content
   if (!body.content) {

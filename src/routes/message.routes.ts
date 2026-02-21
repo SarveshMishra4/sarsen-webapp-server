@@ -22,13 +22,31 @@ const router = Router();
 // @access  Private (Client or Admin)
 router.post(
   '/messages',
-  (req, res, next) => {
-    // Allow both admin and client
-    if (req.headers.authorization) {
-      // Will be handled by respective middleware in controller logic
-      next();
-    } else {
-      next(new Error('Authentication required'));
+  async (req, res, next) => {
+    try {
+      // Try client auth first
+      await new Promise<void>((resolve, reject) => {
+        clientAuthMiddleware(req, res, (err: any) => {
+          if (!err) return resolve();
+          resolve(); // don't reject yet
+        });
+      });
+
+      if (req.client) return next();
+
+      // Try admin auth
+      await new Promise<void>((resolve, reject) => {
+        adminAuthMiddleware(req, res, (err: any) => {
+          if (!err) return resolve();
+          reject(err);
+        });
+      });
+
+      if (req.admin) return next();
+
+      throw new Error('Authentication required');
+    } catch (err) {
+      next(err);
     }
   },
   messageController.sendMessage

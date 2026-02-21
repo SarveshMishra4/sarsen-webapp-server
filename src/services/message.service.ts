@@ -154,11 +154,19 @@ export const getMessages = async (
     ]);
 
     // Get unread count for this engagement
-    const unreadCount = await Message.countDocuments({
+    const unreadCount = viewerId
+  ? await Message.countDocuments({
       engagementId: engagement._id,
-      isRead: false,
-      senderId: { $ne: viewerId },
-    });
+      senderId: { $ne: new mongoose.Types.ObjectId(viewerId) },
+      readBy: {
+        $not: {
+          $elemMatch: {
+            userId: new mongoose.Types.ObjectId(viewerId),
+          },
+        },
+      },
+    })
+  : 0;
 
     // If viewer is provided, mark messages as read
     if (viewerId && viewerType && messages.length > 0) {

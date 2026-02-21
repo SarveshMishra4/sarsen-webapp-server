@@ -47,30 +47,33 @@ export const sendMessage = async (
 ): Promise<IMessage> => {
   const session = await mongoose.startSession();
   session.startTransaction();
-  
+
   try {
     const { engagementId, senderId, senderType, content, attachments } = input;
-    
+
     // 1. Get engagement to check messaging is allowed
-    const engagement = await Engagement.findById(engagementId).session(session);
-    
+    // Convert business engagement ID to Mongo _id
+    const engagement = await Engagement.findOne({
+      engagementId: engagementId   // this matches your business ID field
+    }).session(session);
+
     if (!engagement) {
       throw new ApiError(404, 'Engagement not found');
     }
-    
+
     // 2. Check if messaging is allowed
     if (!engagement.messagingAllowed) {
       throw new ApiError(403, 'Messaging is disabled for this engagement');
     }
-    
+
     // 3. Check if engagement is completed
     if (engagement.isCompleted) {
       throw new ApiError(403, 'Cannot send messages in a completed engagement');
     }
-    
+
     // 4. Verify sender exists and get name for snapshot
     let senderName = '';
-    
+
     if (senderType === 'admin') {
       const admin = await Admin.findById(senderId).session(session);
       if (!admin) {
@@ -84,7 +87,7 @@ export const sendMessage = async (
       }
       senderName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email;
     }
-    
+
     // 5. Create message
     const [message] = await Message.create([{
       engagementId,
@@ -95,15 +98,15 @@ export const sendMessage = async (
       attachments,
       isRead: false,
     }], { session });
-    
+
     // 6. Increment message count on engagement
     engagement.messageCount = (engagement.messageCount || 0) + 1;
     await engagement.save({ session });
-    
+
     await session.commitTransaction();
-    
+
     logger.info(`Message sent in engagement ${engagementId} by ${senderType}`);
-    
+
     return message;
   } catch (error) {
     await session.abortTransaction();
@@ -129,19 +132,19 @@ export const getMessages = async (
 ): Promise<{ messages: IMessage[]; total: number; unreadCount: number }> => {
   try {
     const { page = 1, limit = 50, before, after } = filters;
-    
+
     const query: any = { engagementId };
-    
+
     if (before) {
       query.createdAt = { $lt: before };
     }
-    
+
     if (after) {
       query.createdAt = { ...query.createdAt, $gt: after };
     }
-    
+
     const skip = (page - 1) * limit;
-    
+
     // Get messages
     const [messages, total] = await Promise.all([
       Message.find(query)
@@ -150,20 +153,20 @@ export const getMessages = async (
         .limit(limit),
       Message.countDocuments(query),
     ]);
-    
+
     // Get unread count for this engagement
     const unreadCount = await Message.countDocuments({
       engagementId,
       isRead: false,
       senderId: { $ne: viewerId }, // Messages sent by others
     });
-    
+
     // If viewer is provided, mark messages as read
     if (viewerId && viewerType && messages.length > 0) {
       const messageIds = messages
         .filter(m => m.senderId.toString() !== viewerId) // Don't mark own messages
         .map(m => m._id);
-      
+
       if (messageIds.length > 0) {
         await Message.updateMany(
           { _id: { $in: messageIds } },
@@ -179,7 +182,7 @@ export const getMessages = async (
         );
       }
     }
-    
+
     return {
       messages: messages.reverse(), // Return in chronological order
       total,
@@ -208,11 +211,11 @@ export const markAsRead = async (
       isRead: false,
       senderId: { $ne: userId }, // Don't mark own messages
     };
-    
+
     if (messageIds && messageIds.length > 0) {
       query._id = { $in: messageIds };
     }
-    
+
     const result = await Message.updateMany(
       query,
       {
@@ -225,7 +228,7 @@ export const markAsRead = async (
         },
       }
     );
-    
+
     logger.info(`Marked ${result.modifiedCount} messages as read in engagement ${engagementId}`);
   } catch (error) {
     logger.error('Error marking messages as read:', error);
@@ -269,7 +272,7 @@ export const getRecentMessages = async (
       .limit(limit)
       .populate('engagementId', 'engagementId serviceName')
       .lean();
-    
+
     return messages.map(msg => ({
       id: msg._id,
       content: msg.content.substring(0, 100) + (msg.content.length > 100 ? '...' : ''),
@@ -295,22 +298,22 @@ export const deleteMessage = async (
 ): Promise<void> => {
   try {
     const message = await Message.findById(messageId);
-    
+
     if (!message) {
       throw new ApiError(404, 'Message not found');
     }
-    
+
     // Only admins can delete messages
     // Soft delete could be implemented here if needed
-    
+
     await message.deleteOne();
-    
+
     // Decrement message count on engagement
     await Engagement.findByIdAndUpdate(
       message.engagementId,
       { $inc: { messageCount: -1 } }
     );
-    
+
     logger.info(`Message ${messageId} deleted by admin ${adminId}`);
   } catch (error) {
     if (error instanceof ApiError) throw error;

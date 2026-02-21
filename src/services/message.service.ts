@@ -45,75 +45,60 @@ export interface MessageFilters {
 export const sendMessage = async (
   input: SendMessageInput
 ): Promise<IMessage> => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
+  const { engagementId, senderId, senderType, content, attachments } = input;
 
-  try {
-    const { engagementId, senderId, senderType, content, attachments } = input;
+  // 1. Get engagement
+  const engagement = await Engagement.findOne({ engagementId });
 
-    // 1. Get engagement to check messaging is allowed
-    // Convert business engagement ID to Mongo _id
-    const engagement = await Engagement.findOne({
-      engagementId: engagementId   // this matches your business ID field
-    }).session(session);
-
-    if (!engagement) {
-      throw new ApiError(404, 'Engagement not found');
-    }
-
-    // 2. Check if messaging is allowed
-    if (!engagement.messagingAllowed) {
-      throw new ApiError(403, 'Messaging is disabled for this engagement');
-    }
-
-    // 3. Check if engagement is completed
-    if (engagement.isCompleted) {
-      throw new ApiError(403, 'Cannot send messages in a completed engagement');
-    }
-
-    // 4. Verify sender exists and get name for snapshot
-    let senderName = '';
-
-    if (senderType === 'admin') {
-      const admin = await Admin.findById(senderId).session(session);
-      if (!admin) {
-        throw new ApiError(404, 'Admin sender not found');
-      }
-      senderName = admin.email; // or admin.name if you have that field
-    } else {
-      const user = await User.findById(senderId).session(session);
-      if (!user) {
-        throw new ApiError(404, 'User sender not found');
-      }
-      senderName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email;
-    }
-
-    // 5. Create message
-    const [message] = await Message.create([{
-      engagementId: engagement._id,   // ✅ FIXED
-      senderId,
-      senderType,
-      senderName,
-      content,
-      attachments,
-      isRead: false,
-    }], { session });
-
-    // 6. Increment message count on engagement
-    engagement.messageCount = (engagement.messageCount || 0) + 1;
-    await engagement.save({ session });
-
-    await session.commitTransaction();
-
-    logger.info(`Message sent in engagement ${engagementId} by ${senderType}`);
-
-    return message;
-  } catch (error) {
-    await session.abortTransaction();
-    throw error;
-  } finally {
-    session.endSession();
+  if (!engagement) {
+    throw new ApiError(404, 'Engagement not found');
   }
+
+  if (!engagement.messagingAllowed) {
+    throw new ApiError(403, 'Messaging is disabled for this engagement');
+  }
+
+  if (engagement.isCompleted) {
+    throw new ApiError(403, 'Cannot send messages in a completed engagement');
+  }
+
+  // 2. Verify sender
+  let senderName = '';
+
+  if (senderType === 'admin') {
+    const admin = await Admin.findById(senderId);
+    if (!admin) {
+      throw new ApiError(404, 'Admin sender not found');
+    }
+    senderName = admin.email;
+  } else {
+    const user = await User.findById(senderId);
+    if (!user) {
+      throw new ApiError(404, 'User sender not found');
+    }
+    senderName =
+      `${user.firstName || ''} ${user.lastName || ''}`.trim() ||
+      user.email;
+  }
+
+  // 3. Create message
+  const message = await Message.create({
+    engagementId: engagement._id,
+    senderId,
+    senderType,
+    senderName,
+    content,
+    attachments,
+    isRead: false,
+  });
+
+  // 4. Increment message count
+  engagement.messageCount = (engagement.messageCount || 0) + 1;
+  await engagement.save();
+
+  logger.info(`Message sent in engagement ${engagementId} by ${senderType}`);
+
+  return message;
 };
 
 /**

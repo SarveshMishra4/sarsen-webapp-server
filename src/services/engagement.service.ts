@@ -258,13 +258,7 @@ export const getEngagementById = async (
 ): Promise<EngagementWithCompletion | null> => {
   try {
     // Check if it's a MongoDB ObjectId or our custom engagementId
-    const isObjectId = mongoose.Types.ObjectId.isValid(engagementId);
-
-    const query = isObjectId
-      ? { _id: engagementId }
-      : { engagementId };
-
-    const engagement = await Engagement.findOne(query)
+    const engagement = await Engagement.findOne({ engagementId })
       .populate('userId', 'email firstName lastName company')
       .populate('createdBy', 'email');
 

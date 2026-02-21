@@ -90,14 +90,14 @@ export const sendMessage = async (
 
     // 5. Create message
     const [message] = await Message.create([{
-  engagementId: engagement._id,   // ✅ FIXED
-  senderId,
-  senderType,
-  senderName,
-  content,
-  attachments,
-  isRead: false,
-}], { session });
+      engagementId: engagement._id,   // ✅ FIXED
+      senderId,
+      senderType,
+      senderName,
+      content,
+      attachments,
+      isRead: false,
+    }], { session });
 
     // 6. Increment message count on engagement
     engagement.messageCount = (engagement.messageCount || 0) + 1;
@@ -133,7 +133,14 @@ export const getMessages = async (
   try {
     const { page = 1, limit = 50, before, after } = filters;
 
-    const query: any = { engagementId };
+    // Convert business engagementId → Mongo _id
+    const engagement = await Engagement.findOne({ engagementId });
+
+    if (!engagement) {
+      throw new ApiError(404, 'Engagement not found');
+    }
+
+    const query: any = { engagementId: engagement._id };
 
     if (before) {
       query.createdAt = { $lt: before };
@@ -206,10 +213,16 @@ export const markAsRead = async (
   messageIds?: string[]
 ): Promise<void> => {
   try {
+    const engagement = await Engagement.findOne({ engagementId });
+
+    if (!engagement) {
+      throw new ApiError(404, 'Engagement not found');
+    }
+
     const query: any = {
-      engagementId,
+      engagementId: engagement._id,
       isRead: false,
-      senderId: { $ne: userId }, // Don't mark own messages
+      senderId: { $ne: userId },
     };
 
     if (messageIds && messageIds.length > 0) {
@@ -247,8 +260,14 @@ export const getUnreadCount = async (
   userId: string
 ): Promise<number> => {
   try {
+    const engagement = await Engagement.findOne({ engagementId });
+
+    if (!engagement) {
+      throw new ApiError(404, 'Engagement not found');
+    }
+
     return await Message.countDocuments({
-      engagementId,
+      engagementId: engagement._id,
       isRead: false,
       senderId: { $ne: userId },
     });

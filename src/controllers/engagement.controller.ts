@@ -102,6 +102,10 @@ export const getAllEngagements = async (
   next: NextFunction
 ): Promise<void> => {
   try {
+    if (!req.admin) {
+      throw new ApiError(401, 'Admin authentication required');
+    }
+
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 20;
 

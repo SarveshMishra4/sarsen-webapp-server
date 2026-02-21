@@ -46,6 +46,8 @@ export const sendMessage = async (
   input: SendMessageInput
 ): Promise<IMessage> => {
   const { engagementId, senderId, senderType, content, attachments } = input;
+  console.log("SENDER ID RECEIVED:", senderId);
+console.log("TYPE OF SENDER ID:", typeof senderId);
 
   // 1. Get engagement
   const engagement = await Engagement.findOne({ engagementId });

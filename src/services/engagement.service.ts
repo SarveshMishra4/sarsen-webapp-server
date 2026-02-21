@@ -341,9 +341,9 @@ export const getAllEngagements = async (
     isActive?: boolean;
     isCompleted?: boolean;
     serviceCode?: string;
-    hasFeedback?: boolean; // PHASE 9: New filter
+    hasFeedback?: boolean;
   } = {}
-): Promise<{ engagements: IEngagement[]; total: number; pages: number }> => {
+): Promise<{ engagements: EngagementSummary[]; total: number; pages: number }> => {
   try {
     const query: any = {};
 
@@ -353,16 +353,34 @@ export const getAllEngagements = async (
 
     const skip = (page - 1) * limit;
 
-    let engagements = await Engagement.find(query)
+    const docs = await Engagement.find(query)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
       .populate('userId', 'email firstName lastName company')
-      .populate('createdBy', 'email');
+      .populate('createdBy', 'email')
+      .lean();
+
+    let engagements = docs.map((eng) => ({
+      id: eng._id.toString(),
+      engagementId: eng.engagementId,
+      serviceCode: eng.serviceCode,
+      serviceName: eng.serviceName,
+      currentProgress: eng.currentProgress,
+      isCompleted: eng.isCompleted,
+      isActive: eng.isActive,
+      messagingAllowed: eng.messagingAllowed,
+      messageCount: eng.messageCount,
+      resourceCount: eng.resourceCount,
+      questionnaireCount: eng.questionnaireCount,
+      startDate: eng.startDate,
+      updatedAt: eng.updatedAt,
+      user: eng.userId,
+    }));
 
     // PHASE 9: Filter by feedback status if requested
     if (filters.hasFeedback !== undefined) {
-      const engagementIds = engagements.map(e => e._id.toString());
+      const engagementIds = engagements.map(e => e.id);
       const feedbackStatus = await Promise.all(
         engagementIds.map(async (id) => ({
           id,
@@ -378,10 +396,10 @@ export const getAllEngagements = async (
     const total = await Engagement.countDocuments(query);
 
     return {
-      engagements,
-      total,
-      pages: Math.ceil(total / limit),
-    };
+  engagements,
+  total,
+  pages: Math.ceil(total / limit),
+};
   } catch (error) {
     logger.error('Error fetching all engagements:', error);
     throw new ApiError(500, 'Failed to fetch engagements');

@@ -80,10 +80,7 @@ export const getMessages = async (
   try {
     const { engagementId } = req.params;
     
-    // Validate engagement ID
-    if (!mongoose.Types.ObjectId.isValid(engagementId)) {
-      throw new ApiError(400, 'Invalid engagement ID format');
-    }
+    
     
     // Determine viewer
     let viewerId: string | undefined;
@@ -164,9 +161,7 @@ export const markAsRead = async (
     }
     
     // Validate engagement ID
-    if (!mongoose.Types.ObjectId.isValid(engagementId)) {
-      throw new ApiError(400, 'Invalid engagement ID format');
-    }
+    
     
     // Optional message IDs in body
     const { messageIds } = req.body;
@@ -207,9 +202,7 @@ export const getUnreadCount = async (
     }
     
     // Validate engagement ID
-    if (!mongoose.Types.ObjectId.isValid(engagementId)) {
-      throw new ApiError(400, 'Invalid engagement ID format');
-    }
+    
     
     const unreadCount = await messageService.getUnreadCount(engagementId, viewerId);
     

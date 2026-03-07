@@ -1,40 +1,12 @@
 /**
-PURPOSE
-Defines API routes for contact form feature.
+ * Contact Routes
+ */
 
-IMPORTED IN
-server.ts
+import { Router } from "express";
+import { sendContactMessage } from "./contact.controller.js";
 
-ROUTE PREFIX
-/api/contact
-*/
+const router = Router();
 
-import express from "express";
-
-import {
- submitContactForm,
- getContacts,
- updateStatus
-} from "./contact.controller.js";
-
-import { validateContactInput } from "./contact.validator.js";
-
-const router = express.Router();
-
-router.post(
-"/submit",
-validateContactInput,
-submitContactForm
-);
-
-router.get(
-"/all",
-getContacts
-);
-
-router.patch(
-"/:id/status",
-updateStatus
-);
+router.post("/send", sendContactMessage);
 
 export default router;

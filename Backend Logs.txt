@@ -679,3 +679,174 @@ Modules communicate with each other only through APIs and
 shared middleware such as authentication. This design allows
 the system to grow incrementally while maintaining stability,
 clarity and maintainability.
+
+
+
+========================================================
+CURRENT CAPABILITIES OF THE SYSTEM
+========================================================
+
+MODULE 1 : NEWSLETTER
+
+Visitors can subscribe to the newsletter and their email will be saved in the database.
+
+
+MODULE 2 : CONTACT
+
+Visitors can send a contact message through the contact form and the message will be saved in the database.
+
+
+MODULE 3 : IDENTITY
+
+System administrators can create the first admin account in the system.
+
+System administrators can log into the system and receive an authentication token.
+
+
+========================================================
+REMAINING CAPABILITIES TO BUILD
+========================================================
+
+MODULE 4 : SUBSCRIBER MANAGEMENT (ADMIN)
+
+Admins can view the list of all newsletter subscribers stored in the system.
+
+Admins can delete newsletter subscribers from the system.
+
+Admins can export the newsletter subscriber list for external use.
+
+
+MODULE 5 : CONTACT MANAGEMENT (ADMIN)
+
+Admins can view all contact messages submitted by visitors.
+
+Admins can mark contact messages as resolved after responding.
+
+Admins can delete contact messages after they have been processed.
+
+
+MODULE 6 : MESSAGING SYSTEM
+
+Users can send messages to admins within the platform.
+
+Admins can send replies to user messages inside the system.
+
+Users can view conversation history related to their engagements.
+
+Admins can view all communication threads with users.
+
+
+MODULE 7 : FILE MANAGEMENT
+
+Users can upload documents related to their engagements.
+
+Admins can upload documents and share them with users.
+
+Users can download files shared by admins.
+
+Admins can manage and organize uploaded documents.
+
+
+MODULE 8 : SERVICES MANAGEMENT
+
+Admins can create consulting services offered on the platform.
+
+Admins can update service details such as pricing and description.
+
+Admins can remove services that are no longer offered.
+
+Visitors can view available consulting services on the platform.
+
+
+MODULE 9 : PAYMENT PROCESSING
+
+Users can initiate payment for a selected consulting service.
+
+The system can verify successful payments from the payment gateway.
+
+The system can record completed transactions in the database.
+
+Admins can view the history of all completed payments.
+
+
+MODULE 10 : ENGAGEMENT MANAGEMENT
+
+The system can create a consulting engagement after successful payment.
+
+Admins can assign engagements to specific users.
+
+Admins can update the progress of an engagement.
+
+Admins can mark engagements as completed.
+
+
+MODULE 11 : TASK MANAGEMENT
+
+Admins can create tasks that clients must complete during engagements.
+
+Users can view tasks assigned to them.
+
+Users can mark assigned tasks as completed.
+
+Admins can review task completion progress.
+
+
+MODULE 12 : QUESTIONNAIRE SYSTEM
+
+Admins can create questionnaires for clients to fill out.
+
+Users can submit responses to questionnaires.
+
+Admins can review submitted questionnaire responses.
+
+
+MODULE 13 : FEEDBACK SYSTEM
+
+Users can submit feedback after completing an engagement.
+
+Admins can view client feedback and ratings.
+
+
+MODULE 14 : COUPON SYSTEM
+
+Admins can create promotional coupon codes.
+
+Users can apply coupon codes during service purchases.
+
+The system can validate coupon eligibility and apply discounts.
+
+
+MODULE 15 : COHORT MANAGEMENT
+
+Admins can create cohorts for group consulting programs.
+
+Admins can assign users to specific cohorts.
+
+Users can view their assigned cohort and related information.
+
+
+MODULE 16 : REPORTING SYSTEM
+
+Admins can view analytical reports about subscribers, users and engagements.
+
+Admins can view financial reports about payments and revenue.
+
+Admins can view platform usage statistics to understand system growth.
+
+
+========================================================
+PROJECT PROGRESS
+========================================================
+
+Completed Modules : 3
+
+1. Newsletter
+2. Contact
+3. Identity
+
+Remaining Modules : 13
+
+Next Module To Build :
+
+MODULE 4 : SUBSCRIBER MANAGEMENT
+This module will allow admins to view, delete and export newsletter subscribers without modifying the newsletter module.

@@ -1,23 +1,12 @@
 /**
-PURPOSE
-Define API endpoints for newsletter feature.
+ * Newsletter Routes
+ */
 
-IMPORTED IN
-app.ts or server.ts
-*/
-
-import express from "express";
+import { Router } from "express";
 import { subscribeNewsletter } from "./newsletter.controller.js";
-import { validateNewsletterInput } from "./newsletter.validator.js";
 
-const router = express.Router();
+const router = Router();
 
-console.log("Newsletter routes initialized");
-
-router.post(
-"/subscribe",
-validateNewsletterInput,
-subscribeNewsletter
-);
+router.post("/subscribe", subscribeNewsletter);
 
 export default router;

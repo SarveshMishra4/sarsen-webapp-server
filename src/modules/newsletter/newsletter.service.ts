@@ -1,36 +1,16 @@
 /**
-PURPOSE
-Handles business logic for newsletter subscription.
+ * Newsletter Service
+ * Contains business logic
+ */
 
-USED BY
-newsletter.controller.ts
-*/
+import { addSubscriber, findSubscriberByEmail } from "./newsletter.model.js";
 
-import { NewsletterModel } from "./newsletter.model.js";
+export const subscribe = (email: string) => {
+  const existing = findSubscriberByEmail(email);
 
-export const createSubscriber = async (email: string) => {
+  if (existing) {
+    throw new Error("Email already subscribed");
+  }
 
- console.log("Creating newsletter subscriber");
-
- const existingSubscriber = await NewsletterModel.findOne({ email });
-
- if (existingSubscriber) {
-
-  console.log("Subscriber already exists");
-
-  return {
-   success: false,
-   message: "Already subscribed"
-  };
- }
-
- const newSubscriber = await NewsletterModel.create({ email });
-
- console.log("Subscriber saved to database");
-
- return {
-  success: true,
-  message: "Subscribed successfully",
-  data: newSubscriber
- };
+  return addSubscriber(email);
 };

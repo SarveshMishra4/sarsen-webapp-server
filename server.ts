@@ -18,6 +18,7 @@ import { requestLogger } from "./src/core/middleware/requestLogger.js";
 import { errorHandler } from "./src/core/middleware/errorHandler.js";
 import newsletterRoutes from "./src/modules/newsletter/newsletter.routes.js";
 import contactRoutes from "./src/modules/contact/contact.routes.js";
+import identityRoutes from "./src/modules/identity/identity.routes.js";
 
 
 const app = express();
@@ -35,6 +36,9 @@ app.use(errorHandler);
 // Feature Routes
 app.use("/api/newsletter", newsletterRoutes);
 app.use("/api/contact", contactRoutes);
+// Serious Routes
+app.use("/identity", identityRoutes);
+
 
 const startServer = async () => {
   await connectDatabase();

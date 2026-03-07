@@ -1,37 +1,26 @@
 /**
-PURPOSE
-Handle request and response cycle.
-
-USED BY
-newsletter.routes.ts
-*/
+ * Newsletter Controller
+ */
 
 import { Request, Response } from "express";
-import { createSubscriber } from "./newsletter.service.js";
+import { subscribe } from "./newsletter.service.js";
+import { validateEmail } from "./newsletter.validator.js";
 
-export const subscribeNewsletter = async (
-req: Request,
-res: Response
-) => {
+export const subscribeNewsletter = (req: Request, res: Response) => {
+  try {
+    const { email } = req.body;
 
- try {
+    validateEmail(email);
 
-  console.log("Newsletter subscription request received");
+    const subscriber = subscribe(email);
 
-  const { email } = req.body;
-
-  const result = await createSubscriber(email);
-
-  return res.status(200).json(result);
-
- } catch (error) {
-
-  console.error("Newsletter controller error");
-
-  return res.status(500).json({
-   success: false,
-   message: "Internal server error"
-  });
-
- }
+    res.status(201).json({
+      message: "Subscribed successfully",
+      subscriber,
+    });
+  } catch (error: any) {
+    res.status(400).json({
+      error: error.message,
+    });
+  }
 };

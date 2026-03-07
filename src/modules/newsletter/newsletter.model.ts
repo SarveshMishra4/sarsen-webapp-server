@@ -1,31 +1,29 @@
 /**
-PURPOSE
-Database schema for newsletter subscribers.
+ * Newsletter Model
+ * Stores subscriber information
+ */
 
-USED BY
-newsletter.service.ts
-*/
+import { randomUUID } from "crypto";
 
-import mongoose from "mongoose";
-
-console.log("Loading Newsletter Model");
-
-const NewsletterSchema = new mongoose.Schema(
-{
- email: {
-  type: String,
-  required: true,
-  unique: true
- }
-},
-{
- timestamps: true
+export interface Subscriber {
+  id: string;
+  email: string;
+  createdAt: Date;
 }
-);
 
-export const NewsletterModel = mongoose.model(
-"NewsletterSubscriber",
-NewsletterSchema
-);
+const subscribers: Subscriber[] = [];
 
-console.log("Newsletter Model Loaded");
+export const addSubscriber = (email: string): Subscriber => {
+  const subscriber: Subscriber = {
+    id: randomUUID(),
+    email,
+    createdAt: new Date(),
+  };
+
+  subscribers.push(subscriber);
+  return subscriber;
+};
+
+export const findSubscriberByEmail = (email: string) => {
+  return subscribers.find((s) => s.email === email);
+};

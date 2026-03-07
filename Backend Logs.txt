@@ -143,20 +143,16 @@ Current Situation :
         Private control over the system.
 
     LAYER 3 — Admin Dashboard Data
-    Now admin needs to **see data**.
+    Now admin needs to see data.
     Capabilities:
-    View newsletter subscribers
-    Delete subscriber
-    View contacts
-    Mark contact resolved
-    Delete contact
-    ```
-
+        View newsletter subscribers
+        Delete subscriber
+        View contacts
+        Mark contact resolved
+        Delete contact
     Modules affected:
-
-    ```
-    newsletter
-    contact
+        newsletter
+        contact
     ```
 
     But we will **not modify them directly**.
@@ -491,3 +487,195 @@ Current Situation :
     **The complete final backend architecture of your consulting platform** — the same kind used in large production systems.
 
     That will make everything you are building **100× clearer**.
+
+
+
+
+This structure follows your rule:
+New capability → new module
+Old module → never edited
+
+========================================================
+CURRENT SITUATION
+========================================================
+
+src
+├ core
+│
+└ modules
+    ├ contact
+    |       Allows website visitors to send messages to the team.
+    |       This module collects user name, email and message and
+    |       stores it in the system for later processing.
+    |
+    ├ newsletter
+    |       Allows visitors to subscribe using their email.
+    |       This module collects email addresses for marketing,
+    |       updates, announcements and future communication.
+    |
+    ├ reports
+    |       Used to generate analytical reports for administrators.
+    |       These reports may include subscriber statistics,
+    |       engagement statistics and overall platform activity.
+    |
+    └ users
+            Handles general user related data such as profiles,
+            account information and user related metadata.
+
+========================================================
+FINAL SYSTEM ARCHITECTURE (AFTER PROJECT COMPLETION)
+========================================================
+
+src
+├ core
+│   |
+│   ├ errors
+│   |       Centralized error handling system.
+│   |       Defines custom application errors and global error
+│   |       handlers so that every module returns consistent
+│   |       and structured error responses.
+│   |
+│   ├ middleware
+│   |       Global middleware that runs before requests reach
+│   |       modules. Includes logging, authentication checks,
+│   |       request parsing and security related middleware.
+│   |
+│   ├ logger
+│   |       Responsible for logging important system events
+│   |       such as user actions, errors, warnings and system
+│   |       activity. Helps debugging and monitoring production.
+│   |
+│   └ responses
+│           Provides standardized response structures so that
+│           all APIs return consistent formats for success,
+│           failure and data responses.
+
+├ config
+│   |
+│   ├ database
+│   |       Responsible for connecting the application to the
+│   |       database system and maintaining the database client.
+│   |
+│   └ env
+│           Loads environment variables and configuration values
+│           such as API keys, secrets, ports and external service
+│           credentials.
+
+└ modules
+    |
+    ├ identity
+    |       Core authentication and authorization module.
+    |       Responsible for creating admin identities, logging
+    |       admins into the system and generating authentication
+    |       tokens. It verifies tokens and attaches identity
+    |       information to requests so other modules can enforce
+    |       permissions without implementing authentication logic.
+    |
+    ├ newsletter
+    |       Handles email subscriptions from website visitors.
+    |       Users submit their email and the system stores it
+    |       in the subscriber database. Later administrators can
+    |       view or export this subscriber list for marketing
+    |       communication and announcements.
+    |
+    ├ subscribers
+    |       Admin management module for newsletter subscribers.
+    |       Provides administrative capabilities such as viewing
+    |       the list of subscribers, removing subscribers and
+    |       exporting subscriber data for marketing campaigns.
+    |
+    ├ contact
+    |       Allows website visitors to send messages to the team
+    |       through a contact form. This module validates the
+    |       submitted information and stores the message in the
+    |       system so the team can review it later.
+    |
+    ├ contact-admin
+    |       Administrative interface for managing contact
+    |       messages. Admins can view incoming messages,
+    |       mark messages as resolved, archive messages or
+    |       delete them after they have been handled.
+    |
+    ├ messaging
+    |       Internal communication system between users and
+    |       administrators. This module allows both sides to
+    |       send and receive messages within structured
+    |       conversations related to engagements or inquiries.
+    |
+    ├ files
+    |       Handles document uploads and downloads for both
+    |       users and administrators. Files such as reports,
+    |       documents, analysis results or shared resources
+    |       are stored and securely accessed through this module.
+    |
+    ├ services
+    |       Defines the consulting services offered by the
+    |       platform. Administrators can create, update or
+    |       remove services while visitors and users can
+    |       browse available offerings before purchasing.
+    |
+    ├ payments
+    |       Responsible for processing payments when users
+    |       purchase consulting services. It communicates with
+    |       external payment gateways, verifies payment results
+    |       and records successful transactions in the system.
+    |
+    ├ engagements
+    |       Represents the active consulting relationship
+    |       between the platform and a client. When a user
+    |       purchases a service, an engagement is created to
+    |       track the progress, milestones and completion
+    |       status of the consulting work.
+    |
+    ├ todos
+    |       Task management module for engagements. It allows
+    |       administrators to assign tasks to clients and track
+    |       their completion. Clients can complete tasks and
+    |       administrators can review the progress.
+    |
+    ├ questionnaires
+    |       Used to collect structured information from clients
+    |       before or during consulting engagements. Admins
+    |       create questionnaires and clients submit responses
+    |       which are stored for analysis and decision making.
+    |
+    ├ feedback
+    |       Allows clients to provide feedback after completing
+    |       consulting engagements. Ratings and comments are
+    |       stored to evaluate service quality and improve the
+    |       consulting process.
+    |
+    ├ coupons
+    |       Marketing module used to create promotional coupon
+    |       codes. These codes can be applied during service
+    |       purchases to offer discounts or promotional benefits.
+    |
+    ├ cohorts
+    |       Groups users into batches or learning cohorts.
+    |       Useful for group consulting programs, workshops
+    |       or structured advisory programs where multiple
+    |       users participate together.
+    |
+    └ reports
+            Analytical reporting system for administrators.
+            Generates insights about user growth, revenue,
+            engagement activity, subscriber trends and overall
+            system performance to help guide strategic decisions.
+
+========================================================
+ARCHITECTURE PRINCIPLE
+========================================================
+
+The platform follows a modular capability-based architecture.
+
+Each module represents a distinct capability of the system.
+
+When a new capability is introduced, a new module is created
+instead of modifying existing modules. This ensures that
+completed modules remain stable and prevents accidental
+changes that could break existing functionality.
+
+Modules communicate with each other only through APIs and
+shared middleware such as authentication. This design allows
+the system to grow incrementally while maintaining stability,
+clarity and maintainability.

@@ -1,42 +1,15 @@
 /**
-PURPOSE
-Validate incoming request data.
+ * Newsletter Validator
+ */
 
-USED BY
-newsletter.routes.ts
-*/
+export const validateEmail = (email: string) => {
+  if (!email) {
+    throw new Error("Email is required");
+  }
 
-import { Request, Response, NextFunction } from "express";
+  const emailRegex = /\S+@\S+\.\S+/;
 
-export const validateNewsletterInput = (
-req: Request,
-res: Response,
-next: NextFunction
-) => {
-
- console.log("Validating newsletter input");
-
- const { email } = req.body;
-
- if (!email) {
-  console.log("Email missing");
-  return res.status(400).json({
-   success: false,
-   message: "Email is required"
-  });
- }
-
- const emailRegex = /\S+@\S+\.\S+/;
-
- if (!emailRegex.test(email)) {
-  console.log("Invalid email format");
-  return res.status(400).json({
-   success: false,
-   message: "Invalid email format"
-  });
- }
-
- console.log("Validation passed");
-
- next();
+  if (!emailRegex.test(email)) {
+    throw new Error("Invalid email format");
+  }
 };

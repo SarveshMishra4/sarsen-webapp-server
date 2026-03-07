@@ -1,46 +1,33 @@
 /**
-PURPOSE
-Database schema for contact form submissions.
+ * Contact Model
+ */
 
-USED BY
-contact.service.ts
+import { randomUUID } from "crypto";
 
-IMPORTED IN
-contact.service.ts
-*/
-
-import mongoose from "mongoose";
-
-const ContactSchema = new mongoose.Schema(
-{
- name: {
-  type: String,
-  required: true
- },
-
- email: {
-  type: String,
-  required: true
- },
-
- message: {
-  type: String,
-  required: true
- },
-
- status: {
-  type: String,
-  enum: ["new", "contacted", "resolved"],
-  default: "new"
- }
-
-},
-{
- timestamps: true
+export interface ContactMessage {
+  id: string;
+  name: string;
+  email: string;
+  message: string;
+  createdAt: Date;
 }
-);
 
-export const ContactModel = mongoose.model(
-"Contact",
-ContactSchema
-);
+const contacts: ContactMessage[] = [];
+
+export const createContact = (
+  name: string,
+  email: string,
+  message: string
+) => {
+  const contact: ContactMessage = {
+    id: randomUUID(),
+    name,
+    email,
+    message,
+    createdAt: new Date(),
+  };
+
+  contacts.push(contact);
+
+  return contact;
+};

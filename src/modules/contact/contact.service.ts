@@ -1,55 +1,13 @@
 /**
-PURPOSE
-Business logic for contact form system.
+ * Contact Service
+ */
 
-USED BY
-contact.controller.ts
+import { createContact } from "./contact.model.js";
 
-IMPORTED IN
-contact.controller.ts
-*/
-
-import { ContactModel } from "./contact.model.js";
-
-export const createContactMessage = async (
-name: string,
-email: string,
-message: string
+export const submitContact = (
+  name: string,
+  email: string,
+  message: string
 ) => {
-
- const contact = await ContactModel.create({
-  name,
-  email,
-  message
- });
-
- return contact;
-
-};
-
-
-export const getAllContacts = async () => {
-
- const contacts = await ContactModel
-  .find()
-  .sort({ createdAt: -1 });
-
- return contacts;
-
-};
-
-
-export const updateContactStatus = async (
-id: string,
-status: string
-) => {
-
- const contact = await ContactModel.findByIdAndUpdate(
-  id,
-  { status },
-  { new: true }
- );
-
- return contact;
-
+  return createContact(name, email, message);
 };

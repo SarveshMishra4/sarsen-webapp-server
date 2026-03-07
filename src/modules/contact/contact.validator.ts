@@ -1,43 +1,13 @@
 /**
-PURPOSE
-Validate contact form input.
+ * Contact Validator
+ */
 
-USED BY
-contact.routes.ts
-
-IMPORTED IN
-contact.routes.ts
-*/
-
-import { Request, Response, NextFunction } from "express";
-
-export const validateContactInput = (
-req: Request,
-res: Response,
-next: NextFunction
+export const validateContact = (
+  name: string,
+  email: string,
+  message: string
 ) => {
-
- const { name, email, message } = req.body;
-
- if (!name || !email || !message) {
-
-  return res.status(400).json({
-   success: false,
-   message: "All fields are required"
-  });
-
- }
-
- const emailRegex = /\S+@\S+\.\S+/;
-
- if (!emailRegex.test(email)) {
-
-  return res.status(400).json({
-   success: false,
-   message: "Invalid email format"
-  });
-
- }
-
- next();
+  if (!name) throw new Error("Name required");
+  if (!email) throw new Error("Email required");
+  if (!message) throw new Error("Message required");
 };

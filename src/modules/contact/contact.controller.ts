@@ -1,87 +1,26 @@
 /**
-PURPOSE
-Handle contact API requests.
-
-USED BY
-contact.routes.ts
-
-IMPORTED IN
-contact.routes.ts
-*/
+ * Contact Controller
+ */
 
 import { Request, Response } from "express";
+import { submitContact } from "./contact.service.js";
+import { validateContact } from "./contact.validator.js";
 
-import {
- createContactMessage,
- getAllContacts,
- updateContactStatus
-} from "./contact.service.js";
+export const sendContactMessage = (req: Request, res: Response) => {
+  try {
+    const { name, email, message } = req.body;
 
+    validateContact(name, email, message);
 
-export const submitContactForm = async (
-req: Request,
-res: Response
-) => {
+    const contact = submitContact(name, email, message);
 
- try {
-
-  const { name, email, message } = req.body;
-
-  const contact = await createContactMessage(
-   name,
-   email,
-   message
-  );
-
-  return res.status(201).json({
-   success: true,
-   message: "Message submitted successfully",
-   data: contact
-  });
-
- } catch (error) {
-
-  return res.status(500).json({
-   success: false,
-   message: "Failed to submit contact form"
-  });
-
- }
-
-};
-
-
-export const getContacts = async (
-req: Request,
-res: Response
-) => {
-
- const contacts = await getAllContacts();
-
- return res.json({
-  success: true,
-  data: contacts
- });
-
-};
-
-
-export const updateStatus = async (
-req: Request,
-res: Response
-) => {
-
- const { id } = req.params;
- const { status } = req.body;
-
- const contact = await updateContactStatus(
-  id as string, // Fix applied here: asserted 'id' as a string
-  status
- );
-
- return res.json({
-  success: true,
-  data: contact
- });
-
+    res.status(201).json({
+      message: "Message sent successfully",
+      contact,
+    });
+  } catch (error: any) {
+    res.status(400).json({
+      error: error.message,
+    });
+  }
 };

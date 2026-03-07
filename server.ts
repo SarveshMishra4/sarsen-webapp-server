@@ -37,7 +37,7 @@ app.use(errorHandler);
 app.use("/api/newsletter", newsletterRoutes);
 app.use("/api/contact", contactRoutes);
 // Serious Routes
-app.use("/identity", identityRoutes);
+app.use("/api/identity", identityRoutes);
 
 
 const startServer = async () => {

@@ -19,6 +19,8 @@ import { errorHandler } from "./src/core/middleware/errorHandler.js";
 import newsletterRoutes from "./src/modules/newsletter/newsletter.routes.js";
 import contactRoutes from "./src/modules/contact/contact.routes.js";
 import identityRoutes from "./src/modules/identity/identity.routes.js";
+import adminContactRoutes from "./src/modules/adminContact/adminContact.routes.js";
+import adminAnalyticsRoutes from "./src/modules/adminAnalytics/adminAnalytics.routes.js";
 
 
 const app = express();
@@ -38,11 +40,13 @@ app.use("/api/newsletter", newsletterRoutes);
 app.use("/api/contact", contactRoutes);
 // Serious Routes
 app.use("/api/identity", identityRoutes);
+app.use("/api/admin/messages", adminContactRoutes);
+app.use("/api/admin/analytics", adminAnalyticsRoutes);
 
 
 const startServer = async () => {
   await connectDatabase();
-
+  
   app.listen(ENV.PORT, () => {
     console.log(`Server running on port ${ENV.PORT}`);
   });

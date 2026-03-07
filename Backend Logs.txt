@@ -850,3 +850,384 @@ Next Module To Build :
 
 MODULE 4 : SUBSCRIBER MANAGEMENT
 This module will allow admins to view, delete and export newsletter subscribers without modifying the newsletter module.
+
+
+
+
+
+
+
+Establish Context : 
+    PROJECT BACKEND ARCHITECTURE OVERVIEW
+    WEBAPP – SARSEN BACKEND
+
+    ---
+
+    ## PROJECT PHILOSOPHY
+
+    This backend system is being built using a modular architecture.
+    Each capability of the system is implemented as a separate module.
+
+    A module contains everything required for that capability:
+
+    • routes
+    • controller
+    • service
+    • model
+    • validator (if required)
+
+    Modules are independent from each other. Once a module is completed and tested, its internal code should not be modified unless a critical bug is discovered.
+
+    This rule protects the stability of the system and ensures that previously working features do not break when new capabilities are added.
+
+    The architecture is designed so that new functionality is always implemented by creating a new module rather than modifying existing modules.
+
+    ---
+
+    ## TECHNOLOGY DECISIONS
+
+    Database System
+    MongoDB
+
+    Database Library
+    Mongoose
+
+    We are using Mongoose as the Object Data Modeling (ODM) layer to interact with MongoDB.
+
+    This means:
+
+    • Models define database schemas
+    • Models contain database operations
+    • Services call model functions
+    • Controllers handle HTTP communication
+    • Routes expose API endpoints
+
+    We are NOT using Prisma in this project.
+
+    All database operations must be implemented through Mongoose models.
+
+    ---
+
+    ## CORE ARCHITECTURE FLOW
+
+    Each request flows through the following layers:
+
+    Route
+    ↓
+    Controller
+    ↓
+    Service
+    ↓
+    Model (Mongoose)
+    ↓
+    MongoDB
+
+    Responsibilities of each layer:
+
+    Route
+    Defines API endpoints.
+
+    Controller
+    Handles request and response objects.
+
+    Service
+    Contains business logic.
+
+    Model
+    Handles database operations.
+
+    ---
+
+    ## CORE SYSTEM STRUCTURE
+
+    src/
+
+    core/
+    config/
+    database/
+    errors/
+    logger/
+    middleware/
+    utils/
+
+    modules/
+    contact/
+    newsletter/
+    identity/
+    subscribers/
+    adminContact/
+    adminAnalytics/
+
+    ---
+
+    ## MODULES COMPLETED
+
+    Module 1 — Contact System
+
+    Purpose
+    Allows visitors to send contact messages to the platform.
+
+    Capabilities
+    • Visitors can submit contact messages
+    • Messages are stored in MongoDB
+    • Messages contain name, email, message, createdAt
+
+    Files
+    contact.routes.ts
+    contact.controller.ts
+    contact.service.ts
+    contact.model.ts
+    contact.validator.ts
+
+    ---
+
+    Module 2 — Newsletter Subscription
+
+    Purpose
+    Collects email addresses for the newsletter.
+
+    Capabilities
+    • Visitors can subscribe to newsletter
+    • Email addresses are stored in MongoDB
+    • Duplicate subscriptions are prevented
+
+    Files
+    newsletter.routes.ts
+    newsletter.controller.ts
+    newsletter.service.ts
+    newsletter.model.ts
+
+    ---
+
+    Module 3 — Identity System
+
+    Purpose
+    Handles authentication and identity for administrators.
+
+    Capabilities
+    • Admin accounts can be created
+    • Admins can log into the system
+    • Authentication tokens are generated
+
+    Files
+    identity.routes.ts
+    identity.controller.ts
+    identity.service.ts
+    identity.model.ts
+
+    ---
+
+    Module 4 — Subscriber Management
+
+    Purpose
+    Allows administrators to manage newsletter subscribers.
+
+    Capabilities
+    • Admin can view subscriber list
+    • Admin can delete subscribers
+    • Admin can export subscriber list
+
+    Files
+    subscribers.routes.ts
+    subscribers.controller.ts
+    subscribers.service.ts
+
+    ---
+
+    Module 5 — Contact Message Management
+
+    Purpose
+    Allows administrators to manage contact messages sent by visitors.
+
+    Capabilities
+    • Admin can view all contact messages
+    • Admin can mark messages as resolved
+    • Admin can delete messages
+
+    Files
+    adminContact.routes.ts
+    adminContact.controller.ts
+    adminContact.service.ts
+
+    ---
+
+    Module 6 — Admin Analytics Dashboard
+
+    Purpose
+    Provides summary metrics for the admin dashboard.
+
+    Capabilities
+    • Admin can see total subscribers
+    • Admin can see total contact messages
+    • Admin can see open vs resolved messages
+    • Admin can see latest activity
+
+    Files
+    adminAnalytics.routes.ts
+    adminAnalytics.controller.ts
+    adminAnalytics.service.ts
+
+    ---
+
+    ## MODULES TO BUILD NEXT
+
+    The following modules will extend the system into a full operational platform.
+
+    Each new module must follow the same architectural pattern.
+
+    ---
+
+    Module 7 — Admin Communication System
+
+    Purpose
+    Enable admins to reply to contact messages and communicate with users.
+
+    Capabilities
+    • Admin can reply to contact messages
+    • Replies are stored in database
+    • Conversations can be tracked
+    • Admin can view conversation history
+
+    ---
+
+    Module 8 — File Management System
+
+    Purpose
+    Allow file exchange between admins and users.
+
+    Capabilities
+    • Admin can upload files
+    • Users can download files
+    • Files can be attached to conversations or engagements
+
+    ---
+
+    Module 9 — Service Catalog
+
+    Purpose
+    Define consulting services offered by the platform.
+
+    Capabilities
+    • Admin can create services
+    • Admin can edit service details
+    • Admin can delete services
+    • Visitors can view services
+
+    ---
+
+    Module 10 — Payment System
+
+    Purpose
+    Handle payment processing for services.
+
+    Capabilities
+    • Users can initiate payment
+    • Payment gateway verifies payment
+    • Transactions are stored in database
+    • Admin can view payment history
+
+    ---
+
+    Module 11 — Engagement Management
+
+    Purpose
+    Track consulting engagements between clients and the platform.
+
+    Capabilities
+    • Engagements created after payment
+    • Admin can assign engagements
+    • Engagement progress can be tracked
+    • Engagements can be marked complete
+
+    ---
+
+    Module 12 — Task Management
+
+    Purpose
+    Track tasks assigned during consulting engagements.
+
+    Capabilities
+    • Admin can create tasks
+    • Users can view assigned tasks
+    • Users can mark tasks complete
+    • Admin can track progress
+
+    ---
+
+    Module 13 — Questionnaire System
+
+    Purpose
+    Collect structured information from clients.
+
+    Capabilities
+    • Admin can create questionnaires
+    • Users can submit responses
+    • Responses are stored and reviewed
+
+    ---
+
+    Module 14 — Feedback System
+
+    Purpose
+    Collect user feedback after engagements.
+
+    Capabilities
+    • Users can submit ratings and feedback
+    • Admin can view feedback analytics
+
+    ---
+
+    Module 15 — Reporting System
+
+    Purpose
+    Generate reports from platform data.
+
+    Capabilities
+    • Subscriber growth reports
+    • Engagement reports
+    • Revenue reports
+    • Platform usage analytics
+
+    ---
+
+    ## SYSTEM DEVELOPMENT RULES
+
+    Rule 1
+    Once a module is completed and tested, it should not be modified.
+
+    Rule 2
+    New functionality must be implemented as a new module.
+
+    Rule 3
+    All database operations must go through Mongoose models.
+
+    Rule 4
+    Services must not contain raw database queries.
+
+    Rule 5
+    Controllers must remain thin and delegate logic to services.
+
+    Rule 6
+    Routes must only define endpoints and call controllers.
+
+    Rule 7
+    Core infrastructure (database, middleware, logging) should not be modified unless absolutely necessary.
+
+    Rule 8
+    Every module must follow the same layered structure.
+
+    ---
+
+    ## LONG TERM GOAL
+
+    The final system will evolve into a complete backend platform capable of handling:
+
+    • lead capture
+    • communication with users
+    • consulting service management
+    • payments and engagements
+    • analytics and reporting
+
+    This architecture ensures that the backend remains scalable, maintainable, and easy to extend without breaking existing functionality.
+
+    END OF DOCUMENT

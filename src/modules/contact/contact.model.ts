@@ -13,6 +13,7 @@ export interface ContactMessage {
   name: string;
   email: string;
   message: string;
+  status: "OPEN" | "RESOLVED";
   createdAt: Date;
 }
 
@@ -25,16 +26,25 @@ const contactSchema = new mongoose.Schema<ContactMessage>({
     required: true,
     trim: true,
   },
+
   email: {
     type: String,
     required: true,
     trim: true,
   },
+
   message: {
     type: String,
     required: true,
     trim: true,
   },
+
+  status: {
+    type: String,
+    enum: ["OPEN", "RESOLVED"],
+    default: "OPEN",
+  },
+
   createdAt: {
     type: Date,
     default: Date.now,
@@ -43,7 +53,6 @@ const contactSchema = new mongoose.Schema<ContactMessage>({
 
 /**
  * MongoDB Model
- * Collection name will automatically become: contacts
  */
 export const ContactModel = mongoose.model<ContactMessage>(
   "Contact",
@@ -65,4 +74,29 @@ export const createContact = async (
   });
 
   return contact;
+};
+
+/**
+ * Fetch all contact messages
+ */
+export const getAllContacts = async (): Promise<ContactMessage[]> => {
+  return ContactModel.find().sort({ createdAt: -1 });
+};
+
+/**
+ * Mark contact message resolved
+ */
+export const resolveContact = async (id: string) => {
+  return ContactModel.findByIdAndUpdate(
+    id,
+    { status: "RESOLVED" },
+    { new: true }
+  );
+};
+
+/**
+ * Delete contact message
+ */
+export const deleteContact = async (id: string) => {
+  return ContactModel.findByIdAndDelete(id);
 };

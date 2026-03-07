@@ -5,42 +5,44 @@
  */
 
 import { Subscriber } from "../newsletter/newsletter.model.js";
+import mongoose from "mongoose";
 
 /**
- * Import the subscriber storage from the newsletter module
- * This allows us to read subscriber data without modifying newsletter logic
+ * Import the MongoDB model
  */
-import * as NewsletterModel from "../newsletter/newsletter.model.js";
+import { SubscriberModel } from "../newsletter/newsletter.model.js";
 
 /**
  * Get all subscribers
  */
-export const getAllSubscribers = (): Subscriber[] => {
-  return (NewsletterModel as any).subscribers || [];
+export const getAllSubscribers = async (): Promise<Subscriber[]> => {
+  const subscribers = await SubscriberModel.find().sort({ createdAt: -1 });
+
+  return subscribers;
 };
 
 /**
  * Delete subscriber by id
  */
-export const deleteSubscriber = (id: string) => {
-  const list = (NewsletterModel as any).subscribers;
+export const deleteSubscriber = async (id: string) => {
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new Error("Invalid subscriber id");
+  }
 
-  const index = list.findIndex((s: Subscriber) => s.id === id);
+  const removed = await SubscriberModel.findByIdAndDelete(id);
 
-  if (index === -1) {
+  if (!removed) {
     throw new Error("Subscriber not found");
   }
 
-  const removed = list.splice(index, 1);
-
-  return removed[0];
+  return removed;
 };
 
 /**
  * Export subscribers as simple email list
  */
-export const exportSubscribers = () => {
-  const list = (NewsletterModel as any).subscribers || [];
+export const exportSubscribers = async (): Promise<string[]> => {
+  const list = await SubscriberModel.find().select("email");
 
-  return list.map((s: Subscriber) => s.email);
+  return list.map((s) => s.email);
 };

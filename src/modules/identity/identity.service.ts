@@ -6,7 +6,11 @@
 
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import { createIdentity, findIdentityByEmail, adminExists } from "./identity.model.js";
+import {
+  createIdentity,
+  findIdentityByEmail,
+  adminExists,
+} from "./identity.model.js";
 import { TokenPayload } from "./identity.types.js";
 
 /**
@@ -19,13 +23,15 @@ const JWT_SECRET = "SUPER_SECRET_KEY";
  * Create first admin
  */
 export const createAdmin = async (email: string, password: string) => {
-  if (adminExists()) {
+  const adminAlreadyExists = await adminExists();
+
+  if (adminAlreadyExists) {
     throw new Error("Admin already exists");
   }
 
   const passwordHash = await bcrypt.hash(password, 10);
 
-  const admin = createIdentity(email, passwordHash, "admin");
+  const admin = await createIdentity(email, passwordHash, "admin");
 
   return admin;
 };
@@ -34,7 +40,7 @@ export const createAdmin = async (email: string, password: string) => {
  * Admin login
  */
 export const loginAdmin = async (email: string, password: string) => {
-  const identity = findIdentityByEmail(email);
+  const identity = await findIdentityByEmail(email);
 
   if (!identity || identity.role !== "admin") {
     throw new Error("Invalid credentials");
@@ -47,7 +53,7 @@ export const loginAdmin = async (email: string, password: string) => {
   }
 
   const payload: TokenPayload = {
-    id: identity.id,
+    id: identity._id.toString(),
     role: identity.role,
   };
 

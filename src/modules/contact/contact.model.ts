@@ -1,33 +1,68 @@
 /**
  * Contact Model
+ * Handles storage of contact messages in MongoDB
  */
 
-import { randomUUID } from "crypto";
+import mongoose from "mongoose";
 
+/**
+ * Contact Message Interface
+ */
 export interface ContactMessage {
-  id: string;
+  _id?: string;
   name: string;
   email: string;
   message: string;
   createdAt: Date;
 }
 
-const contacts: ContactMessage[] = [];
+/**
+ * MongoDB Schema
+ */
+const contactSchema = new mongoose.Schema<ContactMessage>({
+  name: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  email: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  message: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now,
+  },
+});
 
-export const createContact = (
+/**
+ * MongoDB Model
+ * Collection name will automatically become: contacts
+ */
+export const ContactModel = mongoose.model<ContactMessage>(
+  "Contact",
+  contactSchema
+);
+
+/**
+ * Create a contact message
+ */
+export const createContact = async (
   name: string,
   email: string,
   message: string
-) => {
-  const contact: ContactMessage = {
-    id: randomUUID(),
+): Promise<ContactMessage> => {
+  const contact = await ContactModel.create({
     name,
     email,
     message,
-    createdAt: new Date(),
-  };
-
-  contacts.push(contact);
+  });
 
   return contact;
 };

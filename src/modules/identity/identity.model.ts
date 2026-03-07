@@ -1,51 +1,79 @@
 /**
  * Identity Model
  *
- * This file simulates a database.
- * Later you can replace this with a real database model.
+ * MongoDB model for storing user identities.
  */
 
-import { Identity } from "./identity.types.js";
-import { randomUUID } from "crypto";
+import mongoose from "mongoose";
 
 /**
- * In-memory identity storage
+ * Identity schema
  */
-const identities: Identity[] = [];
+const identitySchema = new mongoose.Schema({
+  email: {
+    type: String,
+    required: true,
+    unique: true,
+  },
+
+  passwordHash: {
+    type: String,
+    required: true,
+  },
+
+  role: {
+    type: String,
+    enum: ["admin", "user"],
+    default: "user",
+  },
+
+  createdAt: {
+    type: Date,
+    default: Date.now,
+  },
+});
+
+/**
+ * MongoDB model
+ */
+const IdentityModel = mongoose.model("Identity", identitySchema);
 
 /**
  * Create a new identity
  */
-export const createIdentity = (email: string, passwordHash: string, role: "admin" | "user"): Identity => {
-  const newIdentity: Identity = {
-    id: randomUUID(),
+export const createIdentity = async (
+  email: string,
+  passwordHash: string,
+  role: "admin" | "user"
+) => {
+  const identity = await IdentityModel.create({
     email,
     passwordHash,
     role,
-    createdAt: new Date(),
-  };
+  });
 
-  identities.push(newIdentity);
-  return newIdentity;
+  return identity;
 };
 
 /**
  * Find identity by email
  */
-export const findIdentityByEmail = (email: string): Identity | undefined => {
-  return identities.find((i) => i.email === email);
+export const findIdentityByEmail = async (email: string) => {
+  return await IdentityModel.findOne({ email });
 };
 
 /**
- * Find identity by id
+ * Find identity by ID
  */
-export const findIdentityById = (id: string): Identity | undefined => {
-  return identities.find((i) => i.id === id);
+export const findIdentityById = async (id: string) => {
+  return await IdentityModel.findById(id);
 };
 
 /**
- * Check if admin already exists
+ * Check if admin exists
  */
-export const adminExists = (): boolean => {
-  return identities.some((i) => i.role === "admin");
+export const adminExists = async () => {
+  const admin = await IdentityModel.findOne({ role: "admin" });
+
+  return !!admin;
 };

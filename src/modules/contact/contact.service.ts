@@ -1,13 +1,20 @@
 /**
  * Contact Service
+ *
+ * Contains business logic for contact messages
  */
 
 import { createContact } from "./contact.model.js";
 
-export const submitContact = (
+/**
+ * Submit a contact message
+ */
+export const submitContact = async (
   name: string,
   email: string,
   message: string
 ) => {
-  return createContact(name, email, message);
+  const contact = await createContact(name, email, message);
+
+  return contact;
 };

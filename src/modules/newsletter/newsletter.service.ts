@@ -1,16 +1,23 @@
 /**
  * Newsletter Service
- * Contains business logic
+ * Contains business logic for newsletter subscriptions
  */
 
 import { addSubscriber, findSubscriberByEmail } from "./newsletter.model.js";
 
-export const subscribe = (email: string) => {
-  const existing = findSubscriberByEmail(email);
+/**
+ * Subscribe a user to the newsletter
+ */
+export const subscribe = async (email: string) => {
+  // Check if email already exists
+  const existing = await findSubscriberByEmail(email);
 
   if (existing) {
     throw new Error("Email already subscribed");
   }
 
-  return addSubscriber(email);
+  // Add new subscriber to database
+  const subscriber = await addSubscriber(email);
+
+  return subscriber;
 };

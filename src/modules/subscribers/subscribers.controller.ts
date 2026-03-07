@@ -14,9 +14,9 @@ import {
 /**
  * Get list of subscribers
  */
-export const getSubscribers = (req: Request, res: Response) => {
+export const getSubscribers = async (req: Request, res: Response) => {
   try {
-    const subscribers = getAllSubscribers();
+    const subscribers = await getAllSubscribers();
 
     res.json({
       total: subscribers.length,
@@ -32,11 +32,14 @@ export const getSubscribers = (req: Request, res: Response) => {
 /**
  * Delete subscriber by ID
  */
-export const deleteSubscriberController = (req: Request, res: Response) => {
+export const deleteSubscriberController = async (
+  req: Request,
+  res: Response
+) => {
   try {
     const { id } = req.params;
 
-    const deleted = deleteSubscriber(id as string);
+    const deleted = await deleteSubscriber(id as string);
 
     res.json({
       message: "Subscriber deleted successfully",
@@ -52,9 +55,12 @@ export const deleteSubscriberController = (req: Request, res: Response) => {
 /**
  * Export subscriber emails
  */
-export const exportSubscribersController = (req: Request, res: Response) => {
+export const exportSubscribersController = async (
+  req: Request,
+  res: Response
+) => {
   try {
-    const emails = exportSubscribers();
+    const emails = await exportSubscribers();
 
     res.json({
       total: emails.length,

@@ -21,6 +21,9 @@ import contactRoutes from "./src/modules/contact/contact.routes.js";
 import identityRoutes from "./src/modules/identity/identity.routes.js";
 import adminContactRoutes from "./src/modules/adminContact/adminContact.routes.js";
 import adminAnalyticsRoutes from "./src/modules/adminAnalytics/adminAnalytics.routes.js";
+import conversationRoutes from "./src/modules/conversations/conversations.routes.js";
+import fileRoutes from "./src/modules/files/files.routes.js";
+import serviceRoutes from "./src/modules/services/services.routes.js";
 
 
 const app = express();
@@ -42,6 +45,9 @@ app.use("/api/contact", contactRoutes);
 app.use("/api/identity", identityRoutes);
 app.use("/api/admin/messages", adminContactRoutes);
 app.use("/api/admin/analytics", adminAnalyticsRoutes);
+app.use("/api/admin/conversations", conversationRoutes);
+app.use("/api/files", fileRoutes);
+app.use("/api/services", serviceRoutes);
 
 
 const startServer = async () => {

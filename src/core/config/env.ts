@@ -23,11 +23,20 @@ export const ENV = {
   PORT: process.env.PORT || "5000",
   DATABASE_URL: process.env.DATABASE_URL || "",
   JWT_SECRET: process.env.JWT_SECRET || "default_secret",
-  NODE_ENV: process.env.NODE_ENV || "development"
+  NODE_ENV: process.env.NODE_ENV || "development",
+  // Added Razorpay keys here so TypeScript recognizes them
+  RAZORPAY_KEY_ID: process.env.RAZORPAY_KEY_ID || "",
+  RAZORPAY_KEY_SECRET: process.env.RAZORPAY_KEY_SECRET || "",
 };
 
 if (!ENV.DATABASE_URL) {
   console.error("DATABASE_URL is missing in environment variables");
+  process.exit(1);
+}
+
+// Added validation to fail fast if Razorpay keys are missing
+if (!ENV.RAZORPAY_KEY_ID || !ENV.RAZORPAY_KEY_SECRET) {
+  console.error("Razorpay keys are missing in environment variables");
   process.exit(1);
 }
 

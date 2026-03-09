@@ -24,6 +24,7 @@ import adminAnalyticsRoutes from "./src/modules/adminAnalytics/adminAnalytics.ro
 import conversationRoutes from "./src/modules/conversations/conversations.routes.js";
 import fileRoutes from "./src/modules/files/files.routes.js";
 import serviceRoutes from "./src/modules/services/services.routes.js";
+import paymentRoutes from "./src/modules/payments/payments.routes.js";
 
 
 const app = express();
@@ -48,6 +49,7 @@ app.use("/api/admin/analytics", adminAnalyticsRoutes);
 app.use("/api/admin/conversations", conversationRoutes);
 app.use("/api/files", fileRoutes);
 app.use("/api/services", serviceRoutes);
+app.use("/api/payments", paymentRoutes);
 
 
 const startServer = async () => {

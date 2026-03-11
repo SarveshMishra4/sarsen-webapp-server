@@ -1,8 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
-import { newsletterService } from './newsletter.service';
-import { subscribeSchema } from './newsletter.validator';
-import { formatResponse } from '../../core/utils/formatResponse';
-import { AppError } from '../../core/errors/AppError';
+import { newsletterService } from './newsletter.service.js';
+import { subscribeSchema } from './newsletter.validator.js';
+import { formatResponse } from '../../core/utils/formatResponse.js';
+import { AppError } from '../../core/errors/AppError.js';
 
 export const newsletterController = {
 
@@ -10,7 +10,7 @@ export const newsletterController = {
     try {
       const parsed = subscribeSchema.safeParse(req.body);
       if (!parsed.success) {
-        throw new AppError(parsed.error.errors[0].message, 400);
+        throw new AppError(parsed.error.issues[0]?.message || 'Invalid input', 400);
       }
 
       const result = await newsletterService.subscribe(parsed.data.email);

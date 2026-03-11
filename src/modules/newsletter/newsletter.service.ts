@@ -1,6 +1,6 @@
-import { NewsletterSubscriber } from './newsletter.model';
-import { AppError } from '../../core/errors/AppError';
-import { logger } from '../../core/logger/logger';
+import { NewsletterSubscriber } from './newsletter.model.js';
+import { AppError } from '../../core/errors/AppError.js';
+import { logger } from '../../core/logger/logger.js';
 
 export const newsletterService = {
 

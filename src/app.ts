@@ -62,7 +62,8 @@ const ALLOWED_ORIGINS: string[] = [
   'http://localhost:3000',   // Local frontend dev
   'http://localhost:5173',   // Vite dev server
   // Add your production frontend domain here:
-  // 'https://yourconsultingplatform.com',
+  'https://sarsen-webapp-client.vercel.app/',
+  // 'https://www.yourproductiondomain.com',
 ];
 
 const corsOptions: cors.CorsOptions = {

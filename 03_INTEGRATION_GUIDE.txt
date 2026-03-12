@@ -1,0 +1,836 @@
+================================================================
+CONSULTING PLATFORM — FRONTEND ↔ BACKEND INTEGRATION GUIDE
+Professional handoff document for connecting separately built systems
+================================================================
+
+
+================================================================
+SECTION 1 — THE ONE THING BOTH TEAMS MUST AGREE ON FIRST
+================================================================
+
+Before touching a single line of integration code, both teams
+need to sit together (or on a call) and confirm these 5 things.
+Everything else follows from them.
+
+1. BASE URL
+   Where is the backend deployed?
+   Example: https://api.yourconsultingfirm.com
+   The frontend must store this as a single environment variable.
+   NEVER hardcode it. Every environment (dev, staging, prod) will
+   have a different URL.
+
+   Frontend .env:
+     NEXT_PUBLIC_API_URL=https://api.yourconsultingfirm.com
+     or
+     VITE_API_URL=https://api.yourconsultingfirm.com
+
+2. CORS
+   The backend must whitelist the frontend's exact domain.
+   Backend needs to add to app.ts:
+     app.use(cors({
+       origin: ['https://yourconsultingfirm.com', 'http://localhost:3000'],
+       credentials: true,
+     }));
+   Frontend must send: credentials: 'include' if using cookies,
+   or just set Authorization header if using tokens (our approach).
+
+3. TOKEN STORAGE
+   We use JWT tokens. Frontend must decide where to store them.
+   Recommendation: memory (React state/context) for the token itself,
+   with an httpOnly cookie for refresh if you later add refresh tokens.
+   DO NOT store JWTs in localStorage — it is vulnerable to XSS.
+   Current setup has no refresh tokens — 30 days for user, 7 days for admin.
+
+4. RAZORPAY KEY
+   The backend holds RAZORPAY_KEY_SECRET (never exposed to frontend).
+   The frontend needs RAZORPAY_KEY_ID (public key, safe to expose).
+   The frontend loads the Razorpay JS SDK and uses the KEY_ID.
+   Backend returns the orderId — frontend passes it to Razorpay SDK.
+
+5. RESPONSE SHAPE
+   Every single response from this backend — success or error — is:
+   {
+     "success": true | false,
+     "message": "Human readable string",
+     "data": { ... } | null
+   }
+   Frontend should never assume shape — always read success first,
+   then read data, then message for display.
+
+
+================================================================
+SECTION 2 — FOLDER STRUCTURE (COMPLETE — 78 FILES)
+================================================================
+
+consulting-platform-backend/
+│
+├── .env                          ← Your actual secrets. NEVER commit to git.
+├── .env.example                  ← Template of every required variable. Commit this.
+├── .gitignore                    ← Ignores node_modules, dist, .env
+├── package.json                  ← Dependencies and scripts (dev, build, start, seed)
+├── tsconfig.json                 ← TypeScript config (strict, ES2020, commonjs)
+│
+└── src/
+    ├── app.ts                    ← Wires all middleware and routers onto Express app
+    ├── server.ts                 ← Entry point: DB connect, server start, shutdown
+    │
+    ├── core/
+    │   ├── config/
+    │   │   └── env.ts            ← Validates all env vars at boot, exports typed object
+    │   ├── database/
+    │   │   ├── database.ts       ← MongoDB connection with event logging
+    │   │   └── seed.ts           ← Creates admin accounts from env on first run
+    │   ├── errors/
+    │   │   └── AppError.ts       ← Custom error class with HTTP statusCode
+    │   ├── logger/
+    │   │   └── logger.ts         ← Structured logger (debug/info/warn/error)
+    │   ├── middleware/
+    │   │   ├── errorHandler.ts   ← Global error-to-JSON converter
+    │   │   ├── requestLogger.ts  ← Logs every request with method, path, status, ms
+    │   │   ├── requireAdmin.ts   ← Validates admin JWT, attaches adminId to req
+    │   │   └── requireUser.ts    ← Validates user JWT, attaches userId to req
+    │   └── utils/
+    │       ├── formatResponse.ts ← Wraps all responses in { success, message, data }
+    │       └── generateToken.ts  ← Signs JWT for given payload and expiry
+    │
+    └── modules/
+        ├── admin/
+        │   ├── admin.model.ts        ← Admin DB document with password comparison method
+        │   ├── admin.validator.ts    ← Zod schema for login body
+        │   ├── admin.service.ts      ← login() and seedAdmin() logic
+        │   ├── admin.controller.ts   ← HTTP handler for admin login
+        │   └── admin.routes.ts       ← POST /admin/login
+        │
+        ├── newsletter/
+        │   ├── newsletter.model.ts   ← Subscriber DB document (unique email)
+        │   ├── newsletter.validator.ts ← Zod schema for email field
+        │   ├── newsletter.service.ts ← subscribe(), getAllSubscribers()
+        │   ├── newsletter.controller.ts ← HTTP handlers
+        │   └── newsletter.routes.ts  ← POST subscribe + GET admin list
+        │
+        ├── contact/
+        │   ├── contact.model.ts      ← ContactMessage + AdminNote documents
+        │   ├── contact.validator.ts  ← Zod schemas for submit, status, note
+        │   ├── contact.service.ts    ← Submit, list, view, update status, add note
+        │   ├── contact.controller.ts ← HTTP handlers for all 5 endpoints
+        │   └── contact.routes.ts     ← 1 public + 4 admin routes
+        │
+        ├── services/
+        │   ├── services.model.ts     ← Service document with defaultChecklist[]
+        │   ├── services.validator.ts ← Zod schemas for create and update
+        │   ├── services.service.ts   ← CRUD, public methods filter active only
+        │   ├── services.controller.ts ← HTTP handlers for all 5 endpoints
+        │   └── services.routes.ts    ← 2 public GET + 3 admin POST/PUT/PATCH
+        │
+        ├── coupons/
+        │   ├── coupon.model.ts       ← Coupon document (code, flat price, serviceId)
+        │   ├── coupon.validator.ts   ← Zod schemas for create, toggle, validate
+        │   ├── coupon.service.ts     ← Create, toggle, validateCoupon() 4-step check
+        │   ├── coupon.controller.ts  ← HTTP handlers for all 4 endpoints
+        │   └── coupon.routes.ts      ← 3 admin + 1 public validate
+        │
+        ├── identity/
+        │   ├── identity.model.ts     ← User document, password never returned in JSON
+        │   ├── identity.validator.ts ← Zod schemas for login and resolve
+        │   ├── identity.service.ts   ← login(), resolveOrCreate(), resetPassword(), getAll()
+        │   ├── identity.controller.ts ← HTTP handlers including reset-password
+        │   └── identity.routes.ts    ← Login, resolve(dev), list, reset-password
+        │
+        ├── payments/
+        │   ├── payment.model.ts      ← Payment record with Razorpay IDs, status, snapshot
+        │   ├── payment.validator.ts  ← Zod schema for create-order body
+        │   ├── payment.service.ts    ← createOrder(), HMAC verify, linkEngagement()
+        │   ├── purchaseFlow.service.ts ← Orchestrates full purchase and fulfillment
+        │   ├── payment.controller.ts ← create-order and webhook handlers
+        │   └── payment.routes.ts     ← POST create-order + POST webhook (raw body)
+        │
+        ├── engagements/
+        │   ├── engagement.model.ts        ← Engagement document: checklist, progress, status
+        │   ├── engagement.service.ts      ← Get engagements, ownership check, admin get all
+        │   ├── engagement.controller.ts   ← Read and purchase-answer handlers
+        │   ├── engagement.routes.ts       ← Central router mounting all sub-routes
+        │   ├── purchaseQuestionnaire.model.ts ← Checkout answers snapshot (read-only)
+        │   ├── questionnaire.model.ts     ← Questionnaire, Question, Answer documents
+        │   ├── questionnaire.validator.ts ← Zod schemas for create, add question, submit
+        │   ├── questionnaire.service.ts   ← Admin creates, user submits and locks
+        │   ├── questionnaire.controller.ts ← HTTP handlers for both roles
+        │   ├── questionnaire.routes.ts    ← Two routers: nested + standalone
+        │   ├── checklist.validator.ts     ← Zod schemas for toggle and replace
+        │   ├── checklist.service.ts       ← Toggle, replace, recalculate, deliver
+        │   └── checklist.controller.ts    ← Checklist and deliver HTTP handlers
+        │
+        ├── messages/
+        │   ├── message.model.ts      ← Message document (engagementId, senderId, role)
+        │   ├── message.validator.ts  ← Zod schema for content field
+        │   ├── message.service.ts    ← Send (checks lock), get history, notifies other side
+        │   ├── message.controller.ts ← Send and get handlers (role from JWT)
+        │   └── message.routes.ts     ← Nested router, accepts user or admin token
+        │
+        ├── files/
+        │   ├── fileReference.model.ts    ← FileReference (URL, name, type, uploader)
+        │   ├── fileReference.validator.ts ← Zod: fileName, valid URL, fileType
+        │   ├── fileReference.service.ts  ← Attach (admin), get (ownership enforced)
+        │   ├── fileReference.controller.ts ← Attach and get handlers
+        │   └── fileReference.routes.ts   ← Admin attach + user-or-admin get
+        │
+        ├── feedback/
+        │   ├── feedback.model.ts     ← Feedback document (unique per engagement)
+        │   ├── feedback.validator.ts ← Zod: rating 1-5 integer, optional comments
+        │   ├── feedback.service.ts   ← Submit (requires delivered, one per engagement)
+        │   ├── feedback.controller.ts ← Submit and admin read handlers
+        │   └── feedback.routes.ts    ← User submit + 2 admin reads
+        │
+        └── notifications/
+            ├── notification.model.ts     ← Notification document (type, message, isRead)
+            ├── notification.service.ts   ← createNotification() never throws; get; markRead
+            ├── notification.controller.ts ← User get, admin get, mark-read handlers
+            └── notification.routes.ts    ← User GET + admin GET + PATCH mark-read
+
+
+================================================================
+SECTION 3 — ALL 47 ROUTES WITH PURPOSE
+================================================================
+
+FORMAT: METHOD /path | AUTH | What happens | Frontend feature
+
+──────────────────────────────────────────────────────────────
+SYSTEM
+──────────────────────────────────────────────────────────────
+
+GET /health
+  PUBLIC | Returns uptime and timestamp.
+  Feature: Backend health check — ping on app load to confirm API is alive.
+
+──────────────────────────────────────────────────────────────
+ADMIN LOGIN
+──────────────────────────────────────────────────────────────
+
+POST /admin/login
+  PUBLIC | Verifies admin email+password → returns 7-day JWT + admin object.
+  Feature: Admin login screen.
+
+──────────────────────────────────────────────────────────────
+NEWSLETTER
+──────────────────────────────────────────────────────────────
+
+POST /newsletter/subscribe
+  PUBLIC | Adds email to list. 409 if duplicate, 400 if invalid email.
+  Feature: Newsletter signup form on landing/homepage.
+
+GET /newsletter/admin/subscribers
+  ADMIN | Returns full email list with subscription dates.
+  Feature: Admin — subscriber list / export.
+
+──────────────────────────────────────────────────────────────
+CONTACT FORM
+──────────────────────────────────────────────────────────────
+
+POST /contact
+  PUBLIC | Saves enquiry, notifies admin. 400 if message under 10 chars.
+  Feature: Contact us page — visitor sends enquiry.
+
+GET /contact/admin
+  ADMIN | Returns all submissions sorted newest first with status.
+  Feature: Admin inbox — list of all visitor enquiries.
+
+GET /contact/admin/:id
+  ADMIN | Returns one submission in full with all internal notes.
+  Feature: Admin opens a single enquiry to read and respond internally.
+
+PATCH /contact/admin/:id/status
+  ADMIN | Body: { status } — new | in_progress | resolved | ignored.
+  Feature: Admin marks enquiry as handled or in progress.
+
+POST /contact/admin/:id/notes
+  ADMIN | Body: { note } — adds private internal comment to submission.
+  Feature: Admin team collaboration notes on an enquiry, invisible to visitor.
+
+──────────────────────────────────────────────────────────────
+SERVICES (CONSULTING OFFERINGS)
+──────────────────────────────────────────────────────────────
+
+GET /services
+  PUBLIC | Returns all active services/cohorts with price and description.
+  Feature: Public services/pricing page — anyone can see what is on offer.
+
+GET /services/:id
+  PUBLIC | Returns one active service. 404 if disabled.
+  Feature: Service detail page or checkout page pre-fill.
+
+POST /services/admin
+  ADMIN | Body: { title, description, price, type, defaultChecklist[] }.
+  Creates new offering. defaultChecklist becomes the starting checklist for every engagement.
+  Feature: Admin creates a new consulting service or cohort.
+
+PUT /services/admin/:id
+  ADMIN | Body: partial — only fields sent get updated. Existing engagements unaffected.
+  Feature: Admin edits a service description, price, or checklist template.
+
+PATCH /services/admin/:id/status
+  ADMIN | Body: { isActive: true/false } — hides from public immediately when false.
+  Feature: Admin enables or disables a service listing.
+
+──────────────────────────────────────────────────────────────
+COUPONS
+──────────────────────────────────────────────────────────────
+
+POST /coupons/admin
+  ADMIN | Body: { code, price, serviceId, isActive, expiryDate }.
+  Price is the flat final price — not a percentage. Code stored uppercase.
+  Feature: Admin creates a discount coupon for a specific service.
+
+GET /coupons/admin
+  ADMIN | Returns all coupons with linked service name populated.
+  Feature: Admin coupon management table.
+
+PATCH /coupons/admin/:id/status
+  ADMIN | Body: { isActive: true/false } — deactivates without deleting.
+  Feature: Admin enables or disables a coupon.
+
+POST /coupons/validate
+  PUBLIC | Body: { code, serviceId } — runs 4 checks: exists, correct service, active, not expired.
+  Returns { finalPrice, couponId } on success. Specific error message per failed check.
+  Feature: Coupon field on checkout — validate before showing final price to user.
+
+──────────────────────────────────────────────────────────────
+USER AUTH & IDENTITY
+──────────────────────────────────────────────────────────────
+
+POST /auth/login
+  PUBLIC | Body: { email, password } → returns 30-day JWT + user object (no password).
+  Feature: User login screen.
+
+POST /auth/resolve (DEV ONLY — REMOVE OR GATE IN PRODUCTION)
+  PUBLIC | Body: { email } — creates user if new, finds if existing.
+  Returns plainPassword only on first creation.
+  Feature: Not a frontend feature — backend testing tool only.
+
+GET /auth/admin/users
+  ADMIN | Returns all user accounts without passwords.
+  Feature: Admin user management table.
+
+POST /auth/admin/users/:id/reset-password
+  ADMIN | No body — generates new XXXX-XXXX-XXXX password, hashes it, replaces old one.
+  Plain password returned once only — never stored again.
+  Feature: Admin resets a user's password to share with them manually.
+
+──────────────────────────────────────────────────────────────
+PAYMENTS & PURCHASE
+──────────────────────────────────────────────────────────────
+
+POST /payments/create-order
+  USER | Body: { serviceId, userEmail, couponCode?, purchaseAnswers? }.
+  Validates service + coupon → calculates price → creates Razorpay order → stores pending record.
+  Returns { orderId, amount, currency } for Razorpay SDK.
+  Feature: Checkout — user clicks pay, frontend gets orderId, opens Razorpay modal.
+
+POST /payments/webhook (RAZORPAY CALLS THIS — NO FRONTEND INVOLVEMENT)
+  RAZORPAY | Verifies payment signature → creates/finds user → creates engagement →
+  stores purchase answers → notifies admin. Always returns 200.
+  Feature: Automatic backend fulfillment after successful payment.
+
+──────────────────────────────────────────────────────────────
+ENGAGEMENTS (CLIENT PORTAL)
+──────────────────────────────────────────────────────────────
+
+GET /engagements
+  USER | Returns all of the logged-in user's engagements.
+  Feature: User dashboard home — their list of purchased services.
+
+GET /engagements/:id
+  USER | Returns one engagement. 403 if belongs to different user.
+  Feature: Individual engagement page — the client's project workspace.
+
+GET /engagements/:id/purchase-answers
+  USER | Returns checkout questionnaire answers. Read-only forever.
+  Feature: "Your original brief" section — what the client told us when buying.
+
+GET /engagements/:id/checklist
+  USER or ADMIN | Returns checklist steps with completion state and progress %.
+  Feature: Progress tracker — user sees how far along their project is.
+
+GET /engagements/:id/messages
+  USER or ADMIN | Returns full message history oldest first.
+  Feature: Messaging thread — the conversation between client and consultant.
+
+POST /engagements/:id/messages
+  USER or ADMIN | Body: { content } — sends a message. 403 if delivered. Role set from JWT.
+  Feature: Send message button — client or consultant adds to the conversation.
+
+GET /engagements/:id/files
+  USER or ADMIN | Returns all file references attached to engagement.
+  Feature: Files/deliverables section — documents shared by the consulting team.
+
+POST /engagements/:id/files/admin
+  ADMIN | Body: { fileName, fileUrl, fileType } — attaches external file URL.
+  Feature: Admin shares a document or deliverable with the client.
+
+GET /engagements/:id/questionnaires
+  USER | Returns all questionnaires with questions and user's own answers.
+  Feature: Client questionnaire section — pending forms to fill and submitted forms to review.
+
+POST /engagements/:id/questionnaires/admin
+  ADMIN | Body: { title, deadline } — creates questionnaire, notifies user.
+  Feature: Admin assigns a new questionnaire to a client mid-engagement.
+
+GET /engagements/:id/questionnaires/admin
+  ADMIN | Returns all questionnaires with full answers from client.
+  Feature: Admin reads client responses to assigned questionnaires.
+
+GET /engagements/admin
+  ADMIN | Returns all engagements across all users with populated user + service info.
+  Feature: Admin engagements list — see all active and past client projects.
+
+GET /engagements/admin/:id
+  ADMIN | Returns any one engagement in full detail.
+  Feature: Admin engagement detail page — full view of a specific client project.
+
+GET /engagements/admin/:id/purchase-answers
+  ADMIN | Returns checkout answers for any engagement.
+  Feature: Admin "client brief" tab — what the client said when they purchased.
+
+PATCH /engagements/admin/:id/checklist/:stepId
+  ADMIN | Body: { isCompleted: true/false } — toggles one step.
+  Progress recalculates automatically. canDeliver becomes true at exactly 100%.
+  Feature: Admin checks off a checklist step as work progresses.
+
+PUT /engagements/admin/:id/checklist
+  ADMIN | Body: { steps: [{ stepId, title, order }] } — replaces full checklist.
+  Existing completion preserved for steps that remain. Blocked if delivered.
+  Feature: Admin restructures a project checklist (add, remove, reorder steps).
+
+PATCH /engagements/admin/:id/deliver
+  ADMIN | No body — marks delivered. Requires 100% progress. Locks messages. Notifies user.
+  Feature: "Mark as Delivered" button — only available when all checklist steps are done.
+
+──────────────────────────────────────────────────────────────
+QUESTIONNAIRES (STANDALONE)
+──────────────────────────────────────────────────────────────
+
+POST /questionnaires/:id/questions/admin
+  ADMIN | Body: { text, order } — adds one question to an existing questionnaire.
+  Feature: Admin questionnaire builder — adds questions one by one.
+
+POST /questionnaires/:id/submit
+  USER | Body: { answers: [{ questionId, answerText }] } — submits all answers and locks.
+  409 if already submitted. 403 if engagement delivered.
+  Feature: Client fills and submits their questionnaire form.
+
+──────────────────────────────────────────────────────────────
+FEEDBACK
+──────────────────────────────────────────────────────────────
+
+POST /feedback/engagements/:id
+  USER | Body: { rating, comments? } — rating must be 1-5 integer.
+  403 if not delivered. 409 if already submitted.
+  Feature: Post-delivery feedback form shown to client after engagement completes.
+
+GET /feedback/admin
+  ADMIN | Returns all feedback from all engagements with user emails.
+  Feature: Admin reviews/testimonials dashboard.
+
+GET /feedback/admin/engagements/:id
+  ADMIN | Returns feedback for one engagement. Returns null if not yet submitted.
+  Feature: Admin engagement detail — "Feedback" tab.
+
+──────────────────────────────────────────────────────────────
+NOTIFICATIONS
+──────────────────────────────────────────────────────────────
+
+GET /notifications
+  USER | Returns all user notifications newest first with total and unread count.
+  Feature: Notification bell/dropdown on user dashboard.
+
+GET /notifications/admin
+  ADMIN | Returns all admin notifications newest first with unread count.
+  Feature: Notification bell/dropdown on admin panel.
+
+PATCH /notifications/:id/read
+  USER or ADMIN | Marks one notification as read. 404 if not found or wrong owner.
+  Feature: Clicking a notification or "dismiss" button marks it as seen.
+
+
+================================================================
+SECTION 4 — WHAT TRIGGERS EACH NOTIFICATION
+================================================================
+
+These are automatic — frontend does not call them. They fire on server.
+
+new_engagement          → Admin notified when any payment succeeds
+payment_success         → User notified when their payment confirms
+contact_form_submitted  → Admin notified when visitor submits contact form
+new_message             → Recipient notified on every message (user↔admin)
+questionnaire_assigned  → User notified when admin creates questionnaire for them
+questionnaire_submitted → Admin notified when client submits questionnaire answers
+engagement_delivered    → User notified when admin marks their project delivered
+feedback_submitted      → Admin notified when client submits post-delivery feedback
+
+
+================================================================
+SECTION 5 — FRONTEND INTEGRATION: STEP BY STEP
+================================================================
+
+This is the exact sequence two separate teams should follow
+to connect frontend and backend without breaking things.
+
+──────────────────────────────────────────────────────────────
+PHASE 1: ENVIRONMENT & CONNECTION (DAY 1)
+──────────────────────────────────────────────────────────────
+
+Step 1 — Backend team deploys to a staging server.
+  Even a basic VPS or Railway/Render free tier works.
+  The backend must be reachable at a real HTTPS URL, not localhost.
+  Localhost only works if both teams are on the same machine.
+
+Step 2 — Backend team adds CORS.
+  In app.ts, add:
+    import cors from 'cors';
+    app.use(cors({
+      origin: [
+        'http://localhost:3000',   // frontend dev
+        'https://yourfrontend.com' // frontend production
+      ],
+      credentials: true,
+    }));
+  Install: npm install cors && npm install --save-dev @types/cors
+
+Step 3 — Frontend team creates their API base config.
+  Create one file: lib/api.ts (or similar)
+    const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+
+    export async function apiRequest(
+      method: string,
+      path: string,
+      body?: object,
+      token?: string
+    ) {
+      const res = await fetch(`${BASE_URL}${path}`, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.message);
+      return data.data;
+    }
+
+  This single function is used for every API call. All error
+  handling flows through the thrown Error with the backend message.
+
+Step 4 — Frontend team tests GET /health.
+  If they get { success: true } the connection works.
+  This confirms: URL correct, CORS correct, server running.
+
+──────────────────────────────────────────────────────────────
+PHASE 2: AUTH FLOWS (DAY 1-2)
+──────────────────────────────────────────────────────────────
+
+Step 5 — Implement user login.
+  POST /auth/login → get token → store in React Context or Zustand.
+  DO NOT put in localStorage.
+  Token shape: standard JWT — frontend can decode it client-side to
+  read userId and expiry without making a network call.
+
+Step 6 — Implement admin login separately.
+  POST /admin/login → store admin token separately from user token.
+  Admin area and user area should be completely separate flows.
+
+Step 7 — Implement token attachment.
+  Every protected request must send: Authorization: Bearer <token>
+  Do this once in your api.ts wrapper, not on every individual call.
+
+Step 8 — Implement logout.
+  Just delete the token from state. No backend call needed.
+  The JWT expires naturally. If you need instant invalidation you
+  would add a token blacklist — tell us and we can add that.
+
+──────────────────────────────────────────────────────────────
+PHASE 3: PUBLIC PAGES (DAY 2-3)
+──────────────────────────────────────────────────────────────
+
+Step 9 — Services/pricing page.
+  GET /services → render service cards.
+  GET /services/:id → service detail page.
+  These are completely public, no token needed.
+
+Step 10 — Coupon field on checkout.
+  POST /coupons/validate with { code, serviceId }
+  On success: show finalPrice. Store couponId for order creation.
+  On error: show the exact message from data.message.
+
+Step 11 — Contact form.
+  POST /contact — show success message, clear form.
+
+Step 12 — Newsletter.
+  POST /newsletter/subscribe — show confirmation. Handle 409 gracefully
+  ("You are already subscribed" rather than showing an error).
+
+──────────────────────────────────────────────────────────────
+PHASE 4: PAYMENT FLOW (DAY 3-4)
+──────────────────────────────────────────────────────────────
+
+This is the most technically complex part. Do this carefully.
+
+Step 13 — Frontend installs Razorpay.
+  In your HTML or Next.js _document: load Razorpay checkout script.
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+
+Step 14 — Checkout flow implementation.
+  a. User fills form (service already selected, optional coupon validated)
+  b. User clicks Pay → call POST /payments/create-order with user token
+  c. Backend returns { orderId, amount, currency, serviceTitle }
+  d. Frontend opens Razorpay modal:
+
+    const options = {
+      key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+      order_id: orderId,
+      amount: amount,
+      currency: currency,
+      name: 'Your Consulting Firm',
+      description: serviceTitle,
+      handler: function(response) {
+        // Payment succeeded on Razorpay side
+        // Backend webhook has already (or will shortly) fulfill the order
+        // Redirect user to their dashboard
+        router.push('/dashboard');
+      },
+      modal: {
+        ondismiss: function() {
+          // User closed modal without paying — show message
+        }
+      }
+    };
+    const rzp = new window.Razorpay(options);
+    rzp.open();
+
+  e. On handler callback: redirect to /dashboard.
+     Do NOT verify payment client-side. The backend webhook already did it.
+     Wait 2-3 seconds or poll GET /engagements until the new engagement appears.
+
+Step 15 — Post-payment state.
+  After redirect to dashboard, call GET /engagements.
+  The new engagement will be there within 1-2 seconds of payment.
+  If it is not there immediately, poll once after 3 seconds.
+
+──────────────────────────────────────────────────────────────
+PHASE 5: USER DASHBOARD (DAY 4-6)
+──────────────────────────────────────────────────────────────
+
+Step 16 — Dashboard home.
+  GET /engagements → list all user engagements.
+  Each card: service name, status badge, progress bar (progressPercent).
+
+Step 17 — Individual engagement page.
+  GET /engagements/:id → full engagement data.
+  Page sections (can be tabs or scrolled):
+    - Overview (status, progress)
+    - Messages thread
+    - Files/deliverables
+    - Questionnaires
+    - Checklist (read-only progress view)
+    - Purchase brief (purchase answers)
+    - Feedback (shown only when status === 'delivered')
+
+Step 18 — Messages.
+  GET /engagements/:id/messages → render thread.
+  POST /engagements/:id/messages → send button.
+  Poll GET every 30 seconds OR implement websockets later.
+  Show 403 as "Messaging is closed — this engagement has been delivered."
+
+Step 19 — Files.
+  GET /engagements/:id/files → list with download links.
+  Files are URLs — open in new tab, do not proxy through backend.
+
+Step 20 — Questionnaires.
+  GET /engagements/:id/questionnaires → check isSubmitted flag.
+  If not submitted: show form with questions, submit button calls POST /questionnaires/:id/submit
+  If submitted: show read-only answers.
+
+Step 21 — Notifications.
+  GET /notifications on page load and on a 30-second poll.
+  Show unread count on bell icon.
+  PATCH /notifications/:id/read when user clicks one.
+
+Step 22 — Feedback form.
+  Only show when engagement.status === 'delivered' AND no feedback submitted yet.
+  POST /feedback/engagements/:id
+  After submit: show thank you, hide the form permanently.
+
+──────────────────────────────────────────────────────────────
+PHASE 6: ADMIN PANEL (DAY 6-9)
+──────────────────────────────────────────────────────────────
+
+Step 23 — Admin login and separate routing.
+  Admin panel should be a separate route prefix (/admin/*).
+  Use admin token for all requests. Redirect to admin login if expired.
+
+Step 24 — Admin dashboard.
+  GET /engagements/admin → all engagements table.
+  GET /feedback/admin → feedback/rating summary.
+  GET /notifications/admin → notification inbox.
+
+Step 25 — Engagement management.
+  GET /engagements/admin/:id → full engagement view.
+  PATCH /engagements/admin/:id/checklist/:stepId → checkbox per step.
+  Only show "Mark as Delivered" button when engagement.canDeliver === true.
+  PATCH /engagements/admin/:id/deliver → on button click.
+
+Step 26 — Services and coupons management.
+  Standard CRUD forms using the service and coupon admin routes.
+
+Step 27 — Contact inbox.
+  GET /contact/admin → list. GET /contact/admin/:id → detail.
+  Status dropdown. Notes textarea.
+
+Step 28 — User management.
+  GET /auth/admin/users → table.
+  POST /auth/admin/users/:id/reset-password → confirm dialog before calling.
+  ALWAYS show a confirmation: "This will invalidate the user's current password.
+  The new password will be shown once. Are you sure?"
+
+
+================================================================
+SECTION 6 — THINGS THAT MIGHT NEED TWEAKING WHEN CONNECTING
+================================================================
+
+These are the most common mismatches between separately built
+frontend and backend. Check each one.
+
+1. TOKEN HEADER FORMAT
+   Backend expects:  Authorization: Bearer eyJhbGci...
+   Common frontend mistake: sending just the token without "Bearer "
+   or using a different header name like X-Auth-Token.
+
+2. DATE FORMAT
+   Backend stores dates as ISO 8601 (2024-03-15T10:00:00.000Z).
+   Frontend must send deadline fields in ISO 8601.
+   If frontend sends "15/03/2024" the backend will reject it.
+
+3. PRICE / AMOUNT
+   Razorpay uses paise (1 rupee = 100 paise) internally.
+   The backend stores amount in paise but this is an implementation detail.
+   The frontend should display: amount / 100 with ₹ symbol.
+   When showing service price from GET /services — this is in rupees as entered.
+
+4. RAZORPAY AMOUNT IN MODAL
+   The amount from create-order response is in paise.
+   Pass it directly to Razorpay options.amount — do NOT divide by 100 there.
+   Razorpay SDK expects paise.
+
+5. COUPON FLOW ORDERING
+   Frontend must call POST /coupons/validate BEFORE POST /payments/create-order.
+   The couponId from validate must be passed to create-order.
+   If frontend skips validate and sends couponCode directly — that also works,
+   but the frontend would not know the discounted price before creating the order.
+
+6. ENGAGEMENT STATUS VALUES
+   The status field can be: active | delivered
+   Frontend must handle both. Do not hardcode checks against other strings.
+
+7. CHECKLIST STEP IDs
+   stepId values are strings set by the admin when creating the service.
+   They look like "step-1", "step-2" etc. — but the exact format depends on
+   what was entered. Frontend should never generate stepIds — only read them.
+
+8. PROGRESS PERCENT
+   Returns as a float: 33.333...% not 33%.
+   Frontend should Math.round() or toFixed(0) for display.
+   But when checking canDeliver use the backend's canDeliver flag — never
+   calculate it yourself from the percent.
+
+9. PURCHASE ANSWERS SHAPE
+   purchaseAnswers is an array of { question: string, answer: string }.
+   The exact questions depend on what was configured per service.
+   Frontend should render them generically as key-value pairs.
+
+10. NOTIFICATION RECIPIENT FOR ADMIN
+    Admin notifications use recipientId: 'admin-global'.
+    This means all admins see the same notifications.
+    If you later need per-admin notifications, tell us — it is a model change.
+
+11. FILE UPLOAD
+    The backend does NOT handle file uploads.
+    Files are URL references only.
+    Frontend must upload files to S3, Cloudinary, Google Drive, etc. independently,
+    then pass the resulting URL to POST /engagements/:id/files/admin.
+    If frontend team assumed the backend handles file upload — this needs discussion.
+
+12. PASSWORD RESET
+    Users cannot reset their own passwords.
+    There is no "forgot password" email flow.
+    Users must contact the organisation who resets it via admin panel.
+    If the frontend has a "forgot password" page — it should show a message like
+    "Please contact us to reset your password" and link to the contact form.
+
+
+================================================================
+SECTION 7 — PROFESSIONAL PRACTICES FOR INTEGRATION
+================================================================
+
+These are what professional teams do. Not optional extras.
+
+1. USE A SHARED POSTMAN COLLECTION
+   Backend team exports the complete Postman collection with all 47 routes,
+   example request bodies, and expected responses.
+   Frontend team imports it to understand and test endpoints independently.
+   Both teams update it when anything changes.
+
+2. NEVER CHANGE A RESPONSE SHAPE WITHOUT TELLING THE OTHER TEAM
+   If backend changes data.engagements to data.items — frontend breaks silently.
+   Agree: any breaking change to a response shape requires a message to the other team
+   the same day, before deploying to staging.
+
+3. VERSION YOUR API IF POSSIBLE
+   Mount all routes under /api/v1/...
+   This means later you can add /api/v2/... with breaking changes
+   while old frontend still works on v1.
+   It is a one-line change in app.ts: app.use('/api/v1', router)
+
+4. USE STAGING ENVIRONMENT
+   Never test integration on production.
+   Backend staging: api-staging.yourconsultingfirm.com
+   Frontend staging: staging.yourconsultingfirm.com
+   Only promote to production after staging integration is confirmed working.
+
+5. HANDLE EVERY HTTP STATUS CODE ON FRONTEND
+   Do not just handle 200. Handle 400, 401, 403, 404, 409, 500 explicitly.
+   400 → show validation message to user
+   401 → redirect to login
+   403 → show "you don't have permission" message
+   404 → show not found state
+   409 → show "already exists" message
+   500 → show generic error, do not expose details to user
+
+6. LOADING AND ERROR STATES ON EVERY API CALL
+   Every button that calls an API needs three states:
+   - Default (idle)
+   - Loading (disable button, show spinner)
+   - Error (show message, re-enable button)
+   Never let a user click the same button twice during an API call.
+
+7. DO NOT STORE SENSITIVE DATA IN FRONTEND STATE LONGER THAN NEEDED
+   Plain passwords from reset-password endpoint: copy to clipboard then discard.
+   Never put plain passwords in component state or logs.
+
+8. LOG FRONTEND ERRORS TO A SERVICE
+   Use Sentry or similar. When frontend gets a 500 from backend,
+   log the full request details. This is how you debug production issues.
+
+9. DOCUMENT EVERY CHANGE DURING INTEGRATION
+   Keep a simple INTEGRATION_CHANGES.md file in a shared repo.
+   Every time a tweak is made on either side to make them compatible,
+   write one line about what changed and why.
+   This prevents "why does this work this way" questions three months later.
+
+10. AGREE ON ERROR MESSAGE DISPLAY POLICY
+    Backend sends message: "Feedback can only be submitted after the engagement has been delivered."
+    Does frontend show this exact string to the user?
+    Or does frontend have its own copy?
+    Agree on this upfront — inconsistency looks unprofessional to users.
+
+================================================================
+END OF DOCUMENT
+================================================================

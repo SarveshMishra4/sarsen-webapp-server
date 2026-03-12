@@ -1,0 +1,335 @@
+================================================================
+CONSULTING PLATFORM BACKEND — COMPLETE ROUTES REFERENCE
+47 Routes | What each one does | What the frontend should expect
+================================================================
+
+AUTH LEGEND
+  PUBLIC       = No token required
+  USER TOKEN   = Bearer token from POST /auth/login (30-day JWT)
+  ADMIN TOKEN  = Bearer token from POST /admin/login (7-day JWT)
+  EITHER TOKEN = Accepts both user and admin JWT
+
+All requests send:   Authorization: Bearer <token>
+All responses return: { success: true/false, message: "...", data: {...} }
+
+================================================================
+HEALTH
+================================================================
+
+GET /health                                             PUBLIC
+  Returns server uptime and current timestamp.
+  Frontend use: ping this on app load to confirm backend is reachable.
+
+================================================================
+ADMIN AUTH
+================================================================
+
+POST /admin/login                                       PUBLIC
+  Body: { email, password }
+  Validates admin credentials, returns a 7-day JWT and admin object.
+  Frontend use: admin login screen — store token in memory or secure storage, never localStorage.
+
+================================================================
+NEWSLETTER
+================================================================
+
+POST /newsletter/subscribe                             PUBLIC
+  Body: { email }
+  Adds email to subscriber list. Returns 409 if already subscribed, 400 if invalid email.
+  Frontend use: newsletter signup form on landing page.
+
+GET /newsletter/admin/subscribers                      ADMIN TOKEN
+  Returns full subscriber list with email and date subscribed.
+  Frontend use: admin dashboard subscriber export or display table.
+
+================================================================
+CONTACT FORM
+================================================================
+
+POST /contact                                          PUBLIC
+  Body: { name, email, message }
+  Saves a contact form submission and notifies admin. Message minimum 10 characters.
+  Frontend use: contact us page form.
+
+GET /contact/admin                                     ADMIN TOKEN
+  Returns all contact submissions sorted newest first, each with current status.
+  Frontend use: admin inbox list view.
+
+GET /contact/admin/:id                                 ADMIN TOKEN
+  Returns one submission in full with all internal admin notes attached.
+  Frontend use: admin opens a single submission to read and act on it.
+
+PATCH /contact/admin/:id/status                        ADMIN TOKEN
+  Body: { status }   — values: new | in_progress | resolved | ignored
+  Updates the status of a submission. Returns 400 for any other value.
+  Frontend use: status dropdown on the submission detail page.
+
+POST /contact/admin/:id/notes                          ADMIN TOKEN
+  Body: { note }
+  Adds an internal note to a submission. Who wrote it is recorded from the JWT automatically.
+  Frontend use: admin adds a private comment that the visitor never sees.
+
+================================================================
+SERVICES (CONSULTING OFFERINGS)
+================================================================
+
+GET /services                                          PUBLIC
+  Returns all active services and cohorts with full details including defaultChecklist.
+  Frontend use: services/pricing page visible to all visitors.
+
+GET /services/:id                                      PUBLIC
+  Returns one active service by ID. Returns 404 if disabled or not found.
+  Frontend use: individual service detail page or checkout page pre-fill.
+
+POST /services/admin                                   ADMIN TOKEN
+  Body: { title, description, price, type, defaultChecklist[] }
+  Creates a new consulting service or cohort. Type must be "service" or "cohort".
+  defaultChecklist is an array of { stepId, title, order } that gets copied to every engagement.
+  Frontend use: admin create service form.
+
+PUT /services/admin/:id                                ADMIN TOKEN
+  Body: any combination of { title, description, price, defaultChecklist }
+  Partial update — only fields you send get changed. Does not affect existing engagements.
+  Frontend use: admin edit service form.
+
+PATCH /services/admin/:id/status                       ADMIN TOKEN
+  Body: { isActive: true/false }
+  Enables or disables a service. Disabled services disappear from public endpoints immediately.
+  Frontend use: admin toggle switch on service management page.
+
+================================================================
+COUPONS
+================================================================
+
+POST /coupons/admin                                    ADMIN TOKEN
+  Body: { code, price, serviceId, isActive, expiryDate }
+  Creates a coupon linked to a specific service. Price is a flat override of the service price.
+  Returns 404 if serviceId does not exist. Code is stored uppercase automatically.
+  Frontend use: admin coupon creation form.
+
+GET /coupons/admin                                     ADMIN TOKEN
+  Returns all coupons with linked service name populated. Sorted newest first.
+  Frontend use: admin coupon management table.
+
+PATCH /coupons/admin/:id/status                        ADMIN TOKEN
+  Body: { isActive: true/false }
+  Activates or deactivates a coupon without deleting it.
+  Frontend use: admin enable/disable toggle on coupon row.
+
+POST /coupons/validate                                 PUBLIC
+  Body: { code, serviceId }
+  Checks coupon exists → belongs to this service → is active → has not expired.
+  Returns { finalPrice, couponId } on success, or a specific 400 explaining which check failed.
+  Frontend use: coupon field on checkout page — call this before creating a Razorpay order.
+
+================================================================
+USER AUTH & IDENTITY
+================================================================
+
+POST /auth/login                                       PUBLIC
+  Body: { email, password }
+  Validates user credentials, returns a 30-day JWT and user object. Password never returned.
+  Frontend use: user login screen — store token securely, attach to all subsequent requests.
+
+POST /auth/resolve                                     PUBLIC (DEV/TEST ONLY)
+  Body: { email }
+  Manually triggers the resolveOrCreateUser function — creates a user if new, returns existing if not.
+  Returns plainPassword once on first creation. REMOVE OR GATE THIS IN PRODUCTION.
+  Frontend use: not for frontend use — backend testing only.
+
+GET /auth/admin/users                                  ADMIN TOKEN
+  Returns all user accounts without passwords, sorted newest first.
+  Frontend use: admin user management table.
+
+POST /auth/admin/users/:id/reset-password              ADMIN TOKEN
+  No body needed.
+  Generates a new random password (format: XXXX-XXXX-XXXX), hashes it, replaces the old one.
+  Returns the plain password once — gone forever after this response. Admin must tell the user manually.
+  Frontend use: "Reset Password" button on admin user detail page.
+
+================================================================
+PAYMENTS & PURCHASE FLOW
+================================================================
+
+POST /payments/create-order                            USER TOKEN
+  Body: { serviceId, userEmail, couponCode?, purchaseAnswers? }
+  Full server-side flow: validates service is active → validates coupon if provided →
+  calculates final price → creates Razorpay order → stores pending payment record.
+  Returns { orderId, amount, currency, serviceTitle } for Razorpay SDK initialisation.
+  Frontend use: checkout confirmation button — call this, then open Razorpay modal with returned orderId.
+
+POST /payments/webhook                                 RAZORPAY SERVER ONLY
+  No frontend involvement. Razorpay calls this automatically after payment.
+  Verifies HMAC signature → marks payment success → creates user account if new →
+  creates engagement with copied checklist → stores purchase questionnaire → notifies admin.
+  Always returns 200 — Razorpay retries on anything else.
+  Frontend use: none. Handle payment result by polling GET /engagements or on Razorpay callback.
+
+================================================================
+ENGAGEMENTS (CLIENT DASHBOARD)
+================================================================
+
+GET /engagements                                       USER TOKEN
+  Returns all engagements for the logged-in user with service and coupon details populated.
+  Frontend use: user dashboard home — list of all their purchased services.
+
+GET /engagements/:id                                   USER TOKEN
+  Returns one engagement in full. Returns 403 if it belongs to a different user.
+  Frontend use: individual engagement dashboard page.
+
+GET /engagements/:id/purchase-answers                  USER TOKEN
+  Returns the answers the user submitted at checkout time. Read-only permanently.
+  Frontend use: "Your brief" section on engagement dashboard showing what they told us when buying.
+
+GET /engagements/:id/checklist                         EITHER TOKEN
+  Returns the checklist with each step's completion state, progress percentage, canDeliver flag, and status.
+  Frontend use: progress tracker on both user dashboard and admin engagement view.
+
+GET /engagements/:id/messages                          EITHER TOKEN
+  Returns all messages for this engagement in chronological order (oldest first).
+  Frontend use: messaging thread on engagement page — render user messages right, admin messages left.
+
+POST /engagements/:id/messages                         EITHER TOKEN
+  Body: { content }
+  Sends a message. Blocked if engagement is delivered (403). Blocked if wrong user (403).
+  SenderRole is determined automatically from the JWT — frontend never sends role.
+  Frontend use: message input box at bottom of conversation thread.
+
+GET /engagements/:id/files                             EITHER TOKEN
+  Returns all file references attached to this engagement, sorted newest first.
+  Frontend use: files/deliverables section on engagement dashboard.
+
+POST /engagements/:id/files/admin                      ADMIN TOKEN
+  Body: { fileName, fileUrl, fileType }
+  Admin attaches an external file URL to the engagement. fileUrl must be a valid URL.
+  Frontend use: admin "attach file" form on engagement management page.
+
+GET /engagements/:id/questionnaires                    USER TOKEN
+  Returns all questionnaires assigned to this engagement with questions and the user's answers.
+  Frontend use: questionnaires section on user dashboard — shows pending and submitted forms.
+
+POST /engagements/:id/questionnaires/admin             ADMIN TOKEN
+  Body: { title, deadline }
+  Admin creates a questionnaire for this engagement. Blocked if engagement is delivered.
+  Notifies the user automatically. Deadline must be ISO 8601 date string.
+  Frontend use: admin "assign questionnaire" form on engagement page.
+
+GET /engagements/:id/questionnaires/admin              ADMIN TOKEN
+  Returns all questionnaires with questions and all submitted answers.
+  Frontend use: admin view of submitted questionnaire responses.
+
+GET /engagements/admin                                 ADMIN TOKEN
+  Returns all engagements across all users with user email and service info populated.
+  Frontend use: admin engagements list/table.
+
+GET /engagements/admin/:id                             ADMIN TOKEN
+  Returns one engagement in full detail regardless of which user it belongs to.
+  Frontend use: admin engagement detail page.
+
+GET /engagements/admin/:id/purchase-answers            ADMIN TOKEN
+  Returns checkout questionnaire answers for any engagement without ownership check.
+  Frontend use: admin "client brief" tab on engagement detail page.
+
+PATCH /engagements/admin/:id/checklist/:stepId         ADMIN TOKEN
+  Body: { isCompleted: true/false }
+  Toggles one checklist step. Recalculates progressPercent (exact, never rounded).
+  canDeliver becomes true automatically when progress hits exactly 100%.
+  Blocked if engagement is delivered.
+  Frontend use: checkbox next to each step in admin checklist view.
+
+PUT /engagements/admin/:id/checklist                   ADMIN TOKEN
+  Body: { steps: [{ stepId, title, order }] }
+  Replaces entire checklist structure. Preserves existing completion for steps that remain.
+  Blocked if engagement is delivered.
+  Frontend use: admin "edit checklist" form for adding/removing/reordering steps.
+
+PATCH /engagements/admin/:id/deliver                   ADMIN TOKEN
+  No body.
+  Marks engagement as delivered. Only works when progressPercent === 100 exactly.
+  Locks messaging and questionnaire submission. Notifies user and triggers feedback request.
+  Frontend use: "Mark as Delivered" button — only shown when canDeliver is true.
+
+================================================================
+QUESTIONNAIRES (STANDALONE ENDPOINTS)
+================================================================
+
+POST /questionnaires/:id/questions/admin               ADMIN TOKEN
+  Body: { text, order }
+  Admin adds one question to an existing questionnaire. Blocked after user submits.
+  Frontend use: "Add question" button on questionnaire builder page.
+
+POST /questionnaires/:id/submit                        USER TOKEN
+  Body: { answers: [{ questionId, answerText }] }
+  User submits their answers. Permanently locks the questionnaire on success.
+  Returns 409 if already submitted. Returns 403 if engagement is delivered.
+  Frontend use: "Submit questionnaire" button on user questionnaire form.
+
+================================================================
+FEEDBACK
+================================================================
+
+POST /feedback/engagements/:id                         USER TOKEN
+  Body: { rating, comments? }
+  User submits feedback after delivery. Rating must be 1-5 integer.
+  Blocked if not delivered (403). Blocked if already submitted (409).
+  Frontend use: feedback form shown after engagement is delivered.
+
+GET /feedback/admin                                    ADMIN TOKEN
+  Returns all feedback across all engagements with user email populated.
+  Frontend use: admin feedback/reviews dashboard.
+
+GET /feedback/admin/engagements/:id                    ADMIN TOKEN
+  Returns feedback for one specific engagement. Returns null if none submitted yet.
+  Frontend use: admin engagement detail page "Feedback" tab.
+
+================================================================
+NOTIFICATIONS
+================================================================
+
+GET /notifications                                     USER TOKEN
+  Returns all notifications for the logged-in user, newest first.
+  Also returns total count and unread count.
+  Frontend use: notification bell/dropdown — poll this or implement on page load.
+
+GET /notifications/admin                               ADMIN TOKEN
+  Returns all admin notifications, newest first, with total and unread count.
+  All admins share the same notification pool (recipientId = 'admin-global').
+  Frontend use: admin notification bell/dropdown.
+
+PATCH /notifications/:id/read                          EITHER TOKEN
+  Marks one notification as read. Returns 404 if not found or belongs to someone else.
+  Frontend use: clicking a notification or "Mark all as read" button (call for each).
+
+================================================================
+EVENTS THAT GENERATE NOTIFICATIONS
+================================================================
+
+contact_form_submitted    → admin notified when any visitor submits a contact form
+new_engagement            → admin notified when a payment completes and engagement is created
+payment_success           → user notified when their payment is confirmed and engagement starts
+new_message               → user notified when admin sends a message; admin notified when user sends
+questionnaire_assigned    → user notified when admin creates a questionnaire for their engagement
+questionnaire_submitted   → admin notified when user submits questionnaire answers
+engagement_delivered      → user notified when admin marks their engagement as delivered
+feedback_submitted        → admin notified when user submits post-delivery feedback
+
+================================================================
+ERROR RESPONSE FORMAT (same shape for all errors)
+================================================================
+
+{
+  "success": false,
+  "message": "Human readable description of what went wrong"
+}
+
+Common status codes:
+  400  Bad request — missing field, wrong format, validation failed
+  401  Unauthorized — no token, expired token, invalid token
+  403  Forbidden — token valid but not allowed (wrong user, wrong role, status lock)
+  404  Not found — resource does not exist
+  409  Conflict — duplicate (email already exists, feedback already submitted)
+  500  Server error — unexpected — check server logs
+
+================================================================
+TOTAL: 47 routes across 13 feature areas
+================================================================

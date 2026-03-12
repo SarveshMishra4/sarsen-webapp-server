@@ -20,13 +20,13 @@
  *
  * HOW TO DEBUG:
  * - If webhook signature verification always fails, check that /payments/webhook
- *   is registered BEFORE app.use(express.json()). express.json() consumes the
- *   raw body and Razorpay's HMAC check will always fail after that.
+ * is registered BEFORE app.use(express.json()). express.json() consumes the
+ * raw body and Razorpay's HMAC check will always fail after that.
  * - If CORS errors appear in browser console, update ALLOWED_ORIGINS below.
  * - If a route returns 404 but you added it, check that you imported and
- *   registered it in the ROUTES section below.
+ * registered it in the ROUTES section below.
  * - 404 responses from the catch-all mean the URL doesn't match any registered
- *   route — check the path and HTTP method carefully.
+ * route — check the path and HTTP method carefully.
  */
 
 import './core/config/env.js'; // MUST be first — validates environment before anything runs
@@ -45,13 +45,16 @@ import { logger } from './core/logger/logger.js';
 import adminRoutes from './modules/admin/admin.routes.js';
 import paymentRoutes from './modules/payments/payment.routes.js';
 
-// // Add future module routes here as they are built:
+// Add future module routes here as they are built:
 import newsletterRoutes from './modules/newsletter/newsletter.routes.js';
 import contactRoutes from './modules/contact/contact.routes.js';
 import serviceRoutes from './modules/services/services.routes.js';
 import couponRoutes from './modules/coupons/coupon.routes.js';
 import authRoutes from './modules/identity/identity.routes.js';
 import engagementRoutes from './modules/engagements/engagement.routes.js';
+import { questionnaireRouter } from './modules/questionnaires/questionnaire.routes.js';
+import feedbackRoutes from './modules/feedbacks/feedback.routes.js';
+import notificationRoutes from './modules/notifications/notification.routes.js';
 
 // ─── CORS Configuration ───────────────────────────────────────────────────────
 
@@ -122,28 +125,23 @@ app.get('/health', (_req: Request, res: Response) => {
 app.use('/admin', adminRoutes);
 app.use('/payments', paymentRoutes);
 
-// // Uncomment as each module is built:
+// Uncomment as each module is built:
 app.use('/newsletter', newsletterRoutes);
 app.use('/contact', contactRoutes);
 app.use('/services', serviceRoutes);
 app.use('/coupons', couponRoutes);
 app.use('/auth', authRoutes);
 app.use('/engagements', engagementRoutes);
-
-// ─── Stage 6 placeholder — requireUser middleware test ───────────────────────
-// Temporary GET /engagements that returns an empty array.
-// Replaced by the real engagement module in Stage 8.
-// import { requireUser } from './core/middleware/requireUser.js';
-// app.get('/engagements', requireUser, (_req: Request, res: Response) => {
-//   res.status(200).json(formatResponse(true, 'Engagements retrieved.', { engagements: [] }));
-// });
+app.use('/questionnaires', questionnaireRouter);
+app.use('/feedback', feedbackRoutes);
+app.use('/notifications', notificationRoutes);
 
 // ─── 404 Handler ─────────────────────────────────────────────────────────────
 // Catches any request that didn't match a registered route
 app.use((req: Request, res: Response) => {
-  logger.warn(`[404] Route not found Sarvesh: ${req.method} ${req.originalUrl}`);
+  logger.warn(`[404] Route not found: ${req.method} ${req.originalUrl}`);
   res.status(404).json(
-    formatResponse(false, `Route not found Sarsen: ${req.method} ${req.originalUrl}`)
+    formatResponse(false, `Route not found: ${req.method} ${req.originalUrl}`)
   );
 });
 

@@ -34,7 +34,8 @@ export const engagementController = {
   async getUserEngagementById(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const engagement = await engagementService.getUserEngagementById(
-        req.params.id as string, // FIXED: Explicitly cast to string
+        // FIX: Cast Express params as string
+        req.params.id as string,
         req.userId!
       );
 
@@ -75,11 +76,50 @@ export const engagementController = {
    */
   async getEngagementByIdAdmin(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      // FIXED: Explicitly cast to string
+      // FIX: Cast Express params as string
       const engagement = await engagementService.getEngagementByIdAdmin(req.params.id as string);
 
       res.status(200).json(
         formatResponse(true, 'Engagement retrieved.', engagement)
+      );
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  // ─── Purchase Questionnaire Handlers ─────────────────────────────────────
+
+  /**
+   * GET /engagements/:id/purchase-answers
+   * User token required. Returns the user's own purchase questionnaire answers.
+   */
+  async getPurchaseAnswers(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const answers = await engagementService.getPurchaseAnswersForUser(
+        // FIX: Cast Express params as string
+        req.params.id as string,
+        req.userId!
+      );
+
+      res.status(200).json(
+        formatResponse(true, 'Purchase answers retrieved.', answers ?? { answers: [] })
+      );
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  /**
+   * GET /engagements/admin/:id/purchase-answers
+   * Admin token required. Returns purchase questionnaire answers for any engagement.
+   */
+  async getPurchaseAnswersAdmin(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      // FIX: Cast Express params as string
+      const answers = await engagementService.getPurchaseAnswersAdmin(req.params.id as string);
+
+      res.status(200).json(
+        formatResponse(true, 'Purchase answers retrieved.', answers ?? { answers: [] })
       );
     } catch (err) {
       next(err);

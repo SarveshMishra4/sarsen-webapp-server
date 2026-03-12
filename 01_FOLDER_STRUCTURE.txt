@@ -1,0 +1,145 @@
+================================================================
+CONSULTING PLATFORM BACKEND — COMPLETE PROJECT STRUCTURE
+All 16 Stages Complete | 78 Files
+================================================================
+
+consulting-platform-backend/
+│
+├── .env                                                ← Your actual secrets — never commit this to git
+├── .env.example                                        ← Template showing every variable the app needs, safe to commit
+├── .gitignore                                          ← Tells git to ignore node_modules, dist, and .env
+├── package.json                                        ← All dependencies and npm scripts (dev, build, start, seed)
+├── package-lock.json                                   ← Locked dependency versions for reproducible installs
+├── tsconfig.json                                       ← TypeScript compiler settings (strict mode, ES2020, commonjs)
+│
+└── src/
+    │
+    ├── app.ts                                          ← Builds the Express app: registers all middleware and mounts all routers in order
+    ├── server.ts                                       ← Starts the server: connects DB, listens on PORT, handles shutdown signals
+    │
+    ├── core/                                           ← Shared infrastructure used by every module
+    │   │
+    │   ├── config/
+    │   │   └── env.ts                                  ← Reads .env, validates every required variable exists, exports typed env object
+    │   │
+    │   ├── database/
+    │   │   ├── database.ts                             ← Connects to MongoDB, logs connection events, exports connect/disconnect functions
+    │   │   └── seed.ts                                 ← Creates admin accounts from ADMIN_SEEDS env var on first run, safe to re-run
+    │   │
+    │   ├── errors/
+    │   │   └── AppError.ts                             ← Custom error class with statusCode field so errorHandler knows what HTTP status to send
+    │   │
+    │   ├── logger/
+    │   │   └── logger.ts                               ← Structured logger with levels (debug/info/warn/error), colours in dev, timestamps always
+    │   │
+    │   ├── middleware/
+    │   │   ├── errorHandler.ts                         ← Global catch-all: converts every thrown error into a clean JSON response
+    │   │   ├── requestLogger.ts                        ← Logs every request on arrival and on completion with method, path, status, duration
+    │   │   ├── requireAdmin.ts                         ← Verifies admin JWT in Authorization header, rejects if missing/invalid, attaches adminId + adminEmail to req
+    │   │   └── requireUser.ts                          ← Verifies user JWT in Authorization header, rejects if missing/invalid, attaches userId + userEmail to req
+    │   │
+    │   └── utils/
+    │       ├── formatResponse.ts                       ← Wraps every API response into { success, message, data } so frontend always gets the same shape
+    │       └── generateToken.ts                        ← Signs a JWT with the app secret for a given payload and expiry duration
+    │
+    └── modules/                                        ← Feature modules — each one is self-contained
+        │
+        ├── admin/
+        │   ├── admin.model.ts                          ← Admin document: email, hashedPassword, timestamps; comparePassword() method; strips password from JSON
+        │   ├── admin.validator.ts                      ← Zod: validates login body has a valid email and non-empty password
+        │   ├── admin.service.ts                        ← login(): verifies credentials, returns JWT + admin; seedAdmin(): creates admin if not exists
+        │   ├── admin.controller.ts                     ← Handles POST /admin/login: validates → service → respond
+        │   └── admin.routes.ts                         ← Registers POST /admin/login as a public route
+        │
+        ├── newsletter/
+        │   ├── newsletter.model.ts                     ← NewsletterSubscriber document: email (unique, indexed, lowercase)
+        │   ├── newsletter.validator.ts                 ← Zod: validates subscribe body has a valid email format
+        │   ├── newsletter.service.ts                   ← subscribe(): adds email, rejects duplicate; getAllSubscribers(): returns full list
+        │   ├── newsletter.controller.ts                ← Handles subscribe and list requests
+        │   └── newsletter.routes.ts                    ← Public subscribe + admin-only list
+        │
+        ├── contact/
+        │   ├── contact.model.ts                        ← ContactMessage (name, email, message, status) and AdminNote (text, adminId) documents
+        │   ├── contact.validator.ts                    ← Zod: validates submit form, status update value, and note text
+        │   ├── contact.service.ts                      ← Submit form, get all, get one with notes, update status, add note; notifies admin on submit
+        │   ├── contact.controller.ts                   ← Handles all 5 contact endpoints
+        │   └── contact.routes.ts                       ← Public submit + 4 admin-only endpoints
+        │
+        ├── services/
+        │   ├── services.model.ts                       ← Service document: title, description, price, type (service/cohort), isActive, defaultChecklist[]
+        │   ├── services.validator.ts                   ← Zod: validates create, update, and status toggle bodies
+        │   ├── services.service.ts                     ← CRUD for services; public methods only return active services
+        │   ├── services.controller.ts                  ← Handles all 5 service endpoints
+        │   └── services.routes.ts                      ← 2 public GET + 3 admin-only POST/PUT/PATCH
+        │
+        ├── coupons/
+        │   ├── coupon.model.ts                         ← Coupon document: code (uppercase, unique), price (flat override), serviceId, isActive, expiryDate
+        │   ├── coupon.validator.ts                     ← Zod: validates create, status toggle, and validate-coupon bodies
+        │   ├── coupon.service.ts                       ← Create coupon (verifies service exists), toggle status, validateCoupon() (4-step check), get all
+        │   ├── coupon.controller.ts                    ← Handles all 4 coupon endpoints
+        │   └── coupon.routes.ts                        ← 3 admin-only + 1 public validate
+        │
+        ├── identity/
+        │   ├── identity.model.ts                       ← User document: email (unique), hashedPassword; comparePassword(); strips password from JSON always
+        │   ├── identity.validator.ts                   ← Zod: validates login body and resolve endpoint body
+        │   ├── identity.service.ts                     ← login(), resolveOrCreateUser() (used by purchase flow), resetPassword(), getAllUsers()
+        │   ├── identity.controller.ts                  ← Handles login, resolve, list users, and reset password
+        │   └── identity.routes.ts                      ← Public login + dev resolve + admin list + admin reset-password
+        │
+        ├── payments/
+        │   ├── payment.model.ts                        ← Payment document: Razorpay IDs, amount in paise, status, serviceId, userId, couponId, purchaseAnswers snapshot
+        │   ├── payment.validator.ts                    ← Zod: validates create-order body (serviceId, userEmail, optional coupon, optional answers)
+        │   ├── payment.service.ts                      ← createOrder() creates Razorpay order + pending record; handleWebhook() verifies HMAC; linkEngagementToPayment()
+        │   ├── purchaseFlow.service.ts                 ← Orchestrator: validates service+coupon, calculates price for createOrder; creates user+engagement+questionnaire for fulfillAfterPayment
+        │   ├── payment.controller.ts                   ← Handles create-order (user auth) and webhook (Razorpay server-to-server, raw body)
+        │   └── payment.routes.ts                       ← POST create-order (requireUser) + POST webhook (express.raw, no auth)
+        │
+        ├── engagements/
+        │   ├── engagement.model.ts                     ← Engagement document: userId, serviceId, couponId, status, engagementChecklist[], progressPercent, canDeliver
+        │   ├── engagement.service.ts                   ← Get user engagements, get by ID with ownership check, admin get all, purchase answer reads
+        │   ├── engagement.controller.ts                ← Handles engagement read endpoints and purchase answer endpoints
+        │   ├── engagement.routes.ts                    ← Central router: mounts all engagement, checklist, message, file, and questionnaire sub-routes
+        │   │
+        │   ├── purchaseQuestionnaire.model.ts          ← PurchaseQuestionnaire document: engagementId, answers[] (snapshot from checkout, read-only forever)
+        │   │
+        │   ├── questionnaire.model.ts                  ← Three documents: Questionnaire (title, deadline, isSubmitted), Question (text, order), Answer (answerText)
+        │   ├── questionnaire.validator.ts              ← Zod: validates create questionnaire, add question, and submit answers bodies
+        │   ├── questionnaire.service.ts                ← Admin creates/adds questions; user gets questionnaires+answers; submitAnswers() locks on success; notifies both sides
+        │   ├── questionnaire.controller.ts             ← Handles all questionnaire endpoints for admin and user
+        │   └── questionnaire.routes.ts                 ← Two routers: one nested under /engagements/:id, one standalone at /questionnaires
+        │   │
+        │   ├── checklist.validator.ts                  ← Zod: validates toggle step body (isCompleted bool) and replace checklist body (steps array)
+        │   ├── checklist.service.ts                    ← toggleStep() recalculates progress; updateChecklist() preserves existing completion; deliverEngagement() requires 100%; notifies user on deliver
+        │   └── checklist.controller.ts                 ← Handles toggle, replace, get checklist, and deliver endpoints
+        │
+        ├── messages/
+        │   ├── message.model.ts                        ← Message document: engagementId, senderId, senderRole (user/admin), content
+        │   ├── message.validator.ts                    ← Zod: validates message content is non-empty and under 10000 chars
+        │   ├── message.service.ts                      ← sendMessage() checks ownership+delivery lock; getMessages() returns chronological history; notifies recipient
+        │   ├── message.controller.ts                   ← Handles send and get; determines senderRole from which JWT middleware ran
+        │   └── message.routes.ts                       ← Nested router (mergeParams) with requireUserOrAdmin combined middleware
+        │
+        ├── files/
+        │   ├── fileReference.model.ts                  ← FileReference document: engagementId, fileName, fileUrl, fileType, uploadedBy (admin audit trail)
+        │   ├── fileReference.validator.ts              ← Zod: validates fileName, fileUrl (must be valid URL), fileType
+        │   ├── fileReference.service.ts                ← attachFile() admin-only; getFiles() enforces user ownership
+        │   ├── fileReference.controller.ts             ← Handles attach (admin) and get (user or admin) requests
+        │   └── fileReference.routes.ts                 ← Nested router (mergeParams): admin-only attach + user-or-admin get
+        │
+        ├── feedback/
+        │   ├── feedback.model.ts                       ← Feedback document: engagementId (unique index), userId, rating (1-5), comments (optional)
+        │   ├── feedback.validator.ts                   ← Zod: validates rating is integer 1-5 and optional comments length
+        │   ├── feedback.service.ts                     ← submitFeedback() requires delivered status + no existing feedback; notifies admin on submit
+        │   ├── feedback.controller.ts                  ← Handles submit (user) and get all / get by engagement (admin)
+        │   └── feedback.routes.ts                      ← User submit + 2 admin read endpoints
+        │
+        └── notifications/
+            ├── notification.model.ts                   ← Notification document: recipientId, recipientRole, type, message, engagementId, isRead
+            ├── notification.service.ts                 ← createNotification() never throws (fire-and-forget); getForUser(); getForAdmin(); markAsRead() with ownership check
+            ├── notification.controller.ts              ← Handles get user notifications, get admin notifications, and mark-as-read
+            └── notification.routes.ts                  ← User GET + admin GET + user-or-admin PATCH mark-as-read
+
+
+================================================================
+TOTAL: 78 files | 16 modules | 47 API routes
+================================================================

@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { Engagement, IEngagement } from './engagement.model.js';
+import { PurchaseQuestionnaire, IPurchaseQuestionnaire } from './purchaseQuestionnaire.model.js';
 import { AppError } from '../../core/errors/AppError.js';
 
 export const engagementService = {
@@ -93,5 +94,50 @@ export const engagementService = {
     }
 
     return engagement;
+  },
+
+  // ─── Purchase Questionnaire Read ──────────────────────────────────────────
+
+  /**
+   * getPurchaseAnswersForUser
+   *
+   * User reads their own purchase questionnaire answers.
+   * Ownership enforced — 403 if engagement belongs to someone else.
+   */
+  async getPurchaseAnswersForUser(
+    engagementId: string,
+    userId: string
+  ): Promise<IPurchaseQuestionnaire | null> {
+    if (!mongoose.Types.ObjectId.isValid(engagementId)) {
+      throw new AppError('Invalid engagement ID', 400);
+    }
+
+    const engagement = await Engagement.findById(engagementId);
+    if (!engagement) throw new AppError('Engagement not found', 404);
+
+    if (engagement.userId.toString() !== userId) {
+      throw new AppError('You do not have access to this engagement', 403);
+    }
+
+    return PurchaseQuestionnaire.findOne({ engagementId });
+  },
+
+  /**
+   * getPurchaseAnswersAdmin
+   *
+   * Admin reads purchase questionnaire answers for any engagement.
+   * No ownership check.
+   */
+  async getPurchaseAnswersAdmin(
+    engagementId: string
+  ): Promise<IPurchaseQuestionnaire | null> {
+    if (!mongoose.Types.ObjectId.isValid(engagementId)) {
+      throw new AppError('Invalid engagement ID', 400);
+    }
+
+    const engagement = await Engagement.findById(engagementId);
+    if (!engagement) throw new AppError('Engagement not found', 404);
+
+    return PurchaseQuestionnaire.findOne({ engagementId });
   },
 };

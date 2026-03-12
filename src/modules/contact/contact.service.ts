@@ -1,6 +1,7 @@
 import { ContactMessage, AdminNote, IContactMessage, IAdminNote } from './contact.model.js';
 import { AppError } from '../../core/errors/AppError.js';
 import { logger } from '../../core/logger/logger.js';
+import { notificationService } from '../notifications/notification.service.js';
 
 export const contactService = {
 
@@ -16,10 +17,14 @@ export const contactService = {
       email,
     });
 
-    // TODO (Stage 16): Replace with notificationService.createNotification()
-    logger.info('[Contact] NOTIFY ADMIN: new contact form submission received', {
-      submissionId: submission._id.toString(),
-      from: email,
+    // Notify all admins of new contact form submission
+    // Admin notifications are not scoped to a specific adminId — use 'admin-global'
+    // Note: We intentionally do not 'await' this so we don't block the user's response
+    notificationService.createNotification({
+      recipientId:   'admin-global',
+      recipientRole: 'admin',
+      type:          'contact_form_submitted',
+      message:       `New contact form submission from ${email}.`,
     });
 
     return submission;

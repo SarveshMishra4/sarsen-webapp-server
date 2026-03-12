@@ -29,6 +29,7 @@ import { Engagement } from '../engagements/engagement.model.js';
 import { PurchaseQuestionnaire } from '../engagements/purchaseQuestionnaire.model.js';
 import { identityService } from '../identity/identity.service.js';
 import { paymentService } from './payment.service.js';
+import { notificationService } from '../notifications/notification.service.js';
 import { AppError } from '../../core/errors/AppError.js';
 import { logger } from '../../core/logger/logger.js';
 import { IPayment } from './payment.model.js';
@@ -260,12 +261,24 @@ export const purchaseFlowService = {
       (user as any)._id.toString()
     );
 
-    // ── Step 8: Notify admin ───────────────────────────────────────────────
-    // TODO (Stage 16): Replace with notificationService.createNotification()
-    logger.info('[PurchaseFlow] NOTIFY ADMIN: new engagement created', {
-      engagementId: engagement._id.toString(),
-      userEmail,
-      serviceTitle: service.title,
+    // ── Step 8: Notify admin & user ─────────────────────────────────────────
+    // Notify admin of new engagement
+    notificationService.createNotification({
+      recipientId:   'admin-global',
+      recipientRole: 'admin',
+      type:          'new_engagement',
+      message:       `New engagement created for ${userEmail} — ${service.title}.`,
+      engagementId:  engagement._id.toString(),
+    });
+
+    // Notify user of payment success
+    notificationService.createNotification({
+      // FIXED: Cast user to `any` to access `_id`
+      recipientId:   (user as any)._id.toString(),
+      recipientRole: 'user',
+      type:          'payment_success',
+      message:       `Payment confirmed. Your engagement for ${service.title} has started.`,
+      engagementId:  engagement._id.toString(),
     });
 
     return {

@@ -84,4 +84,28 @@ export const identityController = {
       next(err);
     }
   },
+
+  /**
+   * POST /auth/admin/users/:id/reset-password
+   * Admin only. Generates a new random password for the user, hashes it,
+   * replaces the stored hash, and returns the plain password once.
+   * The plain password is never stored — this is the only moment it exists.
+   * User must be informed of their new password through another channel.
+   */
+  async resetPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      // FIX: Cast Express params as string to satisfy strict typing
+      const { plainPassword } = await identityService.resetPassword(req.params.id as string);
+
+      res.status(200).json(
+        formatResponse(
+          true,
+          'Password reset successfully. Share this with the user — it will not be shown again.',
+          { plainPassword }
+        )
+      );
+    } catch (err) {
+      next(err);
+    }
+  },
 };

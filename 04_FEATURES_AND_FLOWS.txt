@@ -1,0 +1,751 @@
+================================================================
+CONSULTING PLATFORM BACKEND — COMPLETE FEATURE CAPABILITIES
+Every feature, every function, exact sequence of execution
+================================================================
+
+
+================================================================
+FEATURE AREA 1 — SYSTEM
+================================================================
+
+FEATURE 1.1 — Server Health Check
+  What it does: Confirms the backend is alive and returns uptime.
+  Route: GET /health
+  Function flow:
+    1. app.ts → inline handler
+    2. process.uptime() → returns seconds since server started
+    3. formatResponse() → wraps result
+  No service or model involved.
+
+================================================================
+FEATURE AREA 2 — ADMIN AUTHENTICATION
+================================================================
+
+FEATURE 2.1 — Admin Login
+  What it does: Verifies admin email and password, returns a 7-day JWT.
+  Route: POST /admin/login
+  Function flow:
+    1. adminRoutes → adminController.login()
+    2. loginSchema.safeParse() → validates email format and password presence
+    3. adminService.login()
+       a. Admin.findOne({ email }) → finds admin by email
+       b. admin.comparePassword() → bcrypt.compare() against stored hash
+       c. generateToken() → signs JWT with adminId + adminEmail, expires 7d
+    4. formatResponse() → returns token + admin object (no password)
+
+================================================================
+FEATURE AREA 3 — NEWSLETTER
+================================================================
+
+FEATURE 3.1 — Newsletter Subscription
+  What it does: Adds a visitor email to the subscriber list.
+  Route: POST /newsletter/subscribe
+  Function flow:
+    1. newsletterRoutes → newsletterController.subscribe()
+    2. subscribeSchema.safeParse() → validates email format
+    3. newsletterService.subscribe()
+       a. NewsletterSubscriber.findOne({ email }) → checks duplicate
+       b. NewsletterSubscriber.create() → saves new subscriber
+    4. formatResponse() → returns success confirmation
+  Error cases: 409 if already subscribed, 400 if invalid email.
+
+FEATURE 3.2 — View All Subscribers (Admin)
+  What it does: Returns the full subscriber list with dates.
+  Route: GET /newsletter/admin/subscribers
+  Function flow:
+    1. requireAdmin → verifies admin JWT, attaches adminId to req
+    2. newsletterController.getAllSubscribers()
+    3. newsletterService.getAllSubscribers()
+       a. NewsletterSubscriber.find() → sorted by createdAt descending
+    4. formatResponse() → returns list with total count
+
+================================================================
+FEATURE AREA 4 — CONTACT FORM
+================================================================
+
+FEATURE 4.1 — Submit Contact Enquiry
+  What it does: Saves visitor enquiry and notifies admin.
+  Route: POST /contact
+  Function flow:
+    1. contactRoutes → contactController.submit()
+    2. submitContactSchema.safeParse() → validates name, email, message (min 10 chars)
+    3. contactService.submit()
+       a. ContactMessage.create() → saves name, email, message, status: 'new'
+       b. notificationService.createNotification() → type: contact_form_submitted
+          → Notification.create() for recipientId: 'admin-global'
+    4. formatResponse() → returns saved submission
+
+FEATURE 4.2 — View All Enquiries (Admin)
+  What it does: Returns all contact submissions sorted newest first.
+  Route: GET /contact/admin
+  Function flow:
+    1. requireAdmin → verifies admin JWT
+    2. contactController.getAll()
+    3. contactService.getAll()
+       a. ContactMessage.find() → sorted by createdAt descending
+    4. formatResponse() → returns list with total count
+
+FEATURE 4.3 — View Single Enquiry with Notes (Admin)
+  What it does: Returns one submission in full with all internal admin notes.
+  Route: GET /contact/admin/:id
+  Function flow:
+    1. requireAdmin → verifies admin JWT
+    2. contactController.getById()
+    3. contactService.getById()
+       a. ContactMessage.findById() → finds submission
+       b. AdminNote.find({ contactMessageId }) → finds all notes for it
+    4. formatResponse() → returns submission + notes array
+
+FEATURE 4.4 — Update Enquiry Status (Admin)
+  What it does: Moves a submission through the workflow.
+  Route: PATCH /contact/admin/:id/status
+  Valid values: new | in_progress | resolved | ignored
+  Function flow:
+    1. requireAdmin → verifies admin JWT
+    2. contactController.updateStatus()
+    3. updateStatusSchema.safeParse() → validates status is one of the 4 values
+    4. contactService.updateStatus()
+       a. ContactMessage.findByIdAndUpdate() → sets new status
+    5. formatResponse() → returns updated submission
+
+FEATURE 4.5 — Add Internal Note to Enquiry (Admin)
+  What it does: Appends a private note to a submission, invisible to visitor.
+  Route: POST /contact/admin/:id/notes
+  Function flow:
+    1. requireAdmin → verifies admin JWT, attaches adminId
+    2. contactController.addNote()
+    3. addNoteSchema.safeParse() → validates note text is non-empty
+    4. contactService.addNote()
+       a. ContactMessage.findById() → confirms submission exists
+       b. AdminNote.create() → saves note with contactMessageId + adminId
+    5. formatResponse() → returns created note
+
+================================================================
+FEATURE AREA 5 — SERVICE CATALOGUE
+================================================================
+
+FEATURE 5.1 — List All Active Services (Public)
+  What it does: Returns all active consulting services and cohorts.
+  Route: GET /services
+  Function flow:
+    1. servicesRoutes → servicesController.getAll()
+    2. servicesService.getAll()
+       a. Service.find({ isActive: true }) → only active services
+    3. formatResponse() → returns list with full details including defaultChecklist
+
+FEATURE 5.2 — Get Single Service (Public)
+  What it does: Returns one active service by ID.
+  Route: GET /services/:id
+  Function flow:
+    1. servicesController.getById()
+    2. servicesService.getById()
+       a. Service.findOne({ _id, isActive: true }) → 404 if not found or disabled
+    3. formatResponse() → returns full service object
+
+FEATURE 5.3 — Create New Service (Admin)
+  What it does: Creates a new consulting service or cohort with a default checklist.
+  Route: POST /services/admin
+  Function flow:
+    1. requireAdmin → verifies admin JWT
+    2. servicesController.create()
+    3. createServiceSchema.safeParse() → validates title, description, price, type, checklist
+    4. servicesService.create()
+       a. Service.create() → saves document with defaultChecklist[]
+    5. formatResponse() → returns created service
+
+FEATURE 5.4 — Update Service (Admin)
+  What it does: Partial update — only fields sent get changed. Existing engagements unaffected.
+  Route: PUT /services/admin/:id
+  Function flow:
+    1. requireAdmin → verifies admin JWT
+    2. servicesController.update()
+    3. updateServiceSchema.safeParse() → validates any provided fields
+    4. servicesService.update()
+       a. Service.findByIdAndUpdate() → merges changes
+    5. formatResponse() → returns updated service
+
+FEATURE 5.5 — Enable or Disable Service (Admin)
+  What it does: Hides a service from public listing without deleting it.
+  Route: PATCH /services/admin/:id/status
+  Function flow:
+    1. requireAdmin → verifies admin JWT
+    2. servicesController.toggleStatus()
+    3. toggleStatusSchema.safeParse() → validates isActive is boolean
+    4. servicesService.toggleStatus()
+       a. Service.findByIdAndUpdate({ isActive }) → flips visibility
+    5. formatResponse() → returns updated service
+
+================================================================
+FEATURE AREA 6 — COUPONS
+================================================================
+
+FEATURE 6.1 — Create Coupon (Admin)
+  What it does: Creates a discount coupon linked to a specific service.
+  Route: POST /coupons/admin
+  Price field is a flat final price, not a percentage discount.
+  Function flow:
+    1. requireAdmin → verifies admin JWT
+    2. couponController.create()
+    3. createCouponSchema.safeParse() → validates code, price, serviceId, expiryDate
+    4. couponService.create()
+       a. Service.findById(serviceId) → confirms service exists (404 if not)
+       b. Coupon.create() → stores code (uppercased), price, serviceId, isActive, expiryDate
+    5. formatResponse() → returns created coupon
+
+FEATURE 6.2 — List All Coupons (Admin)
+  What it does: Returns all coupons with linked service name populated.
+  Route: GET /coupons/admin
+  Function flow:
+    1. requireAdmin → verifies admin JWT
+    2. couponController.getAll()
+    3. couponService.getAll()
+       a. Coupon.find().populate('serviceId') → joins service title
+    4. formatResponse() → returns list sorted newest first
+
+FEATURE 6.3 — Enable or Disable Coupon (Admin)
+  What it does: Activates or deactivates a coupon without deleting it.
+  Route: PATCH /coupons/admin/:id/status
+  Function flow:
+    1. requireAdmin → verifies admin JWT
+    2. couponController.toggleStatus()
+    3. toggleCouponStatusSchema.safeParse() → validates isActive is boolean
+    4. couponService.toggleStatus()
+       a. Coupon.findByIdAndUpdate({ isActive }) → flips status
+    5. formatResponse() → returns updated coupon
+
+FEATURE 6.4 — Validate Coupon at Checkout (Public)
+  What it does: 4-step validation. Returns final price on success.
+  Route: POST /coupons/validate
+  Function flow:
+    1. couponController.validate()
+    2. validateCouponSchema.safeParse() → validates code and serviceId in body
+    3. couponService.validateCoupon()
+       a. Coupon.findOne({ code: code.toUpperCase() }) → step 1: exists?
+       b. coupon.serviceId.toString() === serviceId → step 2: correct service?
+       c. coupon.isActive === true → step 3: currently active?
+       d. coupon.expiryDate > Date.now() → step 4: not expired?
+       e. Returns { finalPrice: coupon.price, couponId: coupon._id }
+    4. formatResponse() → returns finalPrice + couponId for use in create-order
+
+================================================================
+FEATURE AREA 7 — USER IDENTITY
+================================================================
+
+FEATURE 7.1 — User Login
+  What it does: Verifies credentials, returns 30-day JWT and user object.
+  Route: POST /auth/login
+  Function flow:
+    1. identityRoutes → identityController.login()
+    2. loginSchema.safeParse() → validates email and password
+    3. identityService.login()
+       a. User.findOne({ email }) → 401 if not found
+       b. user.comparePassword() → bcrypt.compare() → 401 if wrong
+       c. generateToken() → signs JWT with userId + userEmail, expires 30d
+    4. formatResponse() → returns token + user object (password stripped by model)
+
+FEATURE 7.2 — Resolve or Create User (Dev/Test Only)
+  What it does: Manually creates a user or finds existing. For testing purchase flow.
+  Route: POST /auth/resolve
+  NOTE: Remove or gate behind env check before production.
+  Function flow:
+    1. identityController.resolveOrCreate()
+    2. resolveUserSchema.safeParse() → validates email
+    3. identityService.resolveOrCreateUser()
+       a. User.findOne({ email }) → if found, return existing (no new password)
+       b. If not found: generatePassword() → XXXX-XXXX-XXXX format
+       c. User.create() → saves email + bcrypt hashed password
+       d. Returns { user, plainPassword (if new), isNew }
+    4. formatResponse() → plainPassword shown only on first creation
+
+FEATURE 7.3 — List All Users (Admin)
+  What it does: Returns all registered user accounts. Passwords never included.
+  Route: GET /auth/admin/users
+  Function flow:
+    1. requireAdmin → verifies admin JWT
+    2. identityController.getAllUsers()
+    3. identityService.getAllUsers()
+       a. User.find().select('-password') → strips password from all results
+    4. formatResponse() → returns users array with total count
+
+FEATURE 7.4 — Reset User Password (Admin)
+  What it does: Generates new password, replaces old one, returns plain once only.
+  Route: POST /auth/admin/users/:id/reset-password
+  Function flow:
+    1. requireAdmin → verifies admin JWT
+    2. identityController.resetPassword()
+    3. identityService.resetPassword()
+       a. User.findById(id) → 404 if user not found
+       b. generatePassword() → new XXXX-XXXX-XXXX random password
+       c. bcrypt.hash() → hashes it
+       d. user.password = hash → user.save() → old password destroyed
+       e. Returns { plainPassword } — exists in memory for this response only
+    4. formatResponse() → returns plainPassword
+  After this response the plain password is gone forever from the system.
+
+================================================================
+FEATURE AREA 8 — PAYMENTS & PURCHASE FLOW
+================================================================
+
+FEATURE 8.1 — Create Razorpay Order (Checkout Initiation)
+  What it does: Validates purchase details, creates Razorpay order, stores pending record.
+  Route: POST /payments/create-order
+  Function flow:
+    1. requireUser → verifies user JWT, attaches userId
+    2. paymentController.createOrder()
+    3. createOrderSchema.safeParse() → validates serviceId, userEmail, optional coupon + answers
+    4. purchaseFlowService.initiateOrder()
+       a. Service.findOne({ _id, isActive: true }) → 404 if not found or disabled
+       b. If couponCode provided: couponService.validateCoupon() → same 4-step check
+       c. finalPrice = coupon ? coupon.price : service.price
+       d. paymentService.createOrder()
+          → razorpay.orders.create({ amount: finalPrice * 100, currency: 'INR' })
+          → Payment.create() → stores orderId, amount, status: 'pending', purchaseAnswers
+       e. Returns { orderId, amount, currency, serviceTitle }
+    5. formatResponse() → frontend uses orderId to open Razorpay modal
+
+FEATURE 8.2 — Payment Webhook Fulfillment (Automatic)
+  What it does: Verifies payment, creates user + engagement + questionnaire automatically.
+  Route: POST /payments/webhook
+  Called by Razorpay server — no frontend involvement.
+  Function flow:
+    1. express.raw() → preserves raw body for HMAC verification
+    2. paymentController.handleWebhook()
+    3. paymentService.verifyWebhookSignature()
+       a. crypto.createHmac('sha256', RAZORPAY_WEBHOOK_SECRET)
+       b. hmac.update(rawBody).digest('hex') → compare to Razorpay header
+       c. 400 if signature mismatch
+    4. purchaseFlowService.fulfillAfterPayment()
+       a. Payment.findOne({ razorpayOrderId }) → finds pending record
+       b. identityService.resolveOrCreateUser(userEmail) → creates user if new
+       c. Engagement.create() → new engagement with:
+          - userId, serviceId, couponId
+          - engagementChecklist: copied from service.defaultChecklist
+          - progressPercent: 0, canDeliver: false, status: 'active'
+       d. PurchaseQuestionnaire.create() → stores purchaseAnswers snapshot permanently
+       e. Payment.findByIdAndUpdate({ status: 'success', engagementId }) → links records
+       f. notificationService.createNotification() × 2
+          → type: new_engagement → admin-global
+          → type: payment_success → user
+    5. Returns 200 always (Razorpay retries on non-200)
+
+================================================================
+FEATURE AREA 9 — ENGAGEMENTS (CLIENT PORTAL)
+================================================================
+
+FEATURE 9.1 — List My Engagements (User)
+  What it does: Returns all engagements belonging to the logged-in user.
+  Route: GET /engagements
+  Function flow:
+    1. requireUser → attaches userId
+    2. engagementController.getUserEngagements()
+    3. engagementService.getUserEngagements()
+       a. Engagement.find({ userId }).populate('serviceId').populate('couponId')
+    4. formatResponse() → returns engagements array
+
+FEATURE 9.2 — View Single Engagement (User)
+  What it does: Returns one engagement. Ownership enforced.
+  Route: GET /engagements/:id
+  Function flow:
+    1. requireUser → attaches userId
+    2. engagementController.getUserEngagementById()
+    3. engagementService.getUserEngagementById()
+       a. Engagement.findById(id).populate('serviceId')
+       b. engagement.userId.toString() !== userId → 403 if not owner
+    4. formatResponse() → returns full engagement
+
+FEATURE 9.3 — View Purchase Brief (User)
+  What it does: Returns answers submitted at checkout. Read-only permanently.
+  Route: GET /engagements/:id/purchase-answers
+  Function flow:
+    1. requireUser → attaches userId
+    2. engagementController.getPurchaseAnswers()
+    3. engagementService.getPurchaseAnswers()
+       a. Engagement.findById() → ownership check
+       b. PurchaseQuestionnaire.findOne({ engagementId }) → fetches snapshot
+    4. formatResponse() → returns answers array
+
+FEATURE 9.4 — View All Engagements (Admin)
+  What it does: Returns every engagement across all users.
+  Route: GET /engagements/admin
+  Function flow:
+    1. requireAdmin → verifies admin JWT
+    2. engagementController.getAllEngagements()
+    3. engagementService.getAllEngagements()
+       a. Engagement.find().populate('userId', 'email').populate('serviceId')
+    4. formatResponse() → returns all engagements with total count
+
+FEATURE 9.5 — View Any Engagement (Admin)
+  What it does: Returns full detail of any engagement without ownership check.
+  Route: GET /engagements/admin/:id
+  Function flow:
+    1. requireAdmin → verifies admin JWT
+    2. engagementController.getEngagementByIdAdmin()
+    3. engagementService.getEngagementByIdAdmin()
+       a. Engagement.findById().populate('userId').populate('serviceId')
+    4. formatResponse() → returns full engagement
+
+FEATURE 9.6 — View Purchase Brief of Any Engagement (Admin)
+  What it does: Returns checkout answers for any engagement, no ownership check.
+  Route: GET /engagements/admin/:id/purchase-answers
+  Function flow:
+    1. requireAdmin → verifies admin JWT
+    2. engagementController.getPurchaseAnswersAdmin()
+    3. engagementService.getPurchaseAnswersAdmin()
+       a. Engagement.findById() → confirms engagement exists
+       b. PurchaseQuestionnaire.findOne({ engagementId })
+    4. formatResponse() → returns answers
+
+================================================================
+FEATURE AREA 10 — CHECKLIST & PROGRESS TRACKING
+================================================================
+
+FEATURE 10.1 — Toggle Checklist Step (Admin)
+  What it does: Marks one step complete or incomplete. Progress recalculates instantly.
+  Route: PATCH /engagements/admin/:id/checklist/:stepId
+  Function flow:
+    1. requireAdmin → verifies admin JWT
+    2. checklistController.toggleStep()
+    3. toggleStepSchema.safeParse() → validates isCompleted is boolean
+    4. checklistService.toggleStep()
+       a. Engagement.findById() → 404 if not found
+       b. engagement.status === 'delivered' → 403 if already delivered
+       c. Find step by stepId in engagementChecklist[] → 404 if step not found
+       d. step.isCompleted = isCompleted → mutates step
+       e. recalculateProgress() → (completedCount / totalCount) * 100 → exact float
+       f. engagement.canDeliver = progressPercent === 100 → boolean
+       g. engagement.save() → persists changes
+    5. formatResponse() → returns updated checklist + progressPercent + canDeliver
+
+FEATURE 10.2 — Replace Entire Checklist (Admin)
+  What it does: Restructures the checklist — add, remove, reorder steps.
+  Route: PUT /engagements/admin/:id/checklist
+  Function flow:
+    1. requireAdmin → verifies admin JWT
+    2. checklistController.updateChecklist()
+    3. updateChecklistSchema.safeParse() → validates steps array (stepId, title, order)
+    4. checklistService.updateChecklist()
+       a. Engagement.findById() → 404 if not found
+       b. engagement.status === 'delivered' → 403 blocked
+       c. existingMap = Map of stepId → isCompleted from current checklist
+       d. engagement.engagementChecklist = newSteps.map() →
+          preserves isCompleted for existing stepIds, defaults false for new ones
+       e. recalculateProgress() → recalculates from new structure
+       f. engagement.save()
+    5. formatResponse() → returns new checklist + updated progress
+
+FEATURE 10.3 — View Checklist and Progress (User or Admin)
+  What it does: Returns checklist state, progress %, canDeliver, and status.
+  Route: GET /engagements/:id/checklist
+  Function flow:
+    1. requireUserOrAdmin → tries user JWT first, falls back to admin JWT
+    2. checklistController.getChecklist()
+    3. checklistService.getChecklist()
+       a. Engagement.findById()
+       b. If user role: engagement.userId !== requesterId → 403
+       c. Returns checklist[], progressPercent, canDeliver, status
+    4. formatResponse() → read-only response
+
+FEATURE 10.4 — Deliver Engagement (Admin)
+  What it does: Marks engagement complete. Locks messaging. Notifies user.
+  Route: PATCH /engagements/admin/:id/deliver
+  Function flow:
+    1. requireAdmin → verifies admin JWT
+    2. checklistController.deliverEngagement()
+    3. checklistService.deliverEngagement()
+       a. Engagement.findById() → 404 if not found
+       b. engagement.status === 'delivered' → 409 already delivered
+       c. engagement.progressPercent !== 100 → 403 with exact current % in message
+       d. engagement.status = 'delivered' → engagement.canDeliver = false
+       e. engagement.save()
+       f. notificationService.createNotification()
+          → type: engagement_delivered → userId
+    4. formatResponse() → returns new status, progressPercent, canDeliver
+
+================================================================
+FEATURE AREA 11 — MESSAGING
+================================================================
+
+FEATURE 11.1 — Send Message
+  What it does: Adds message to engagement thread. Blocked after delivery.
+  Route: POST /engagements/:id/messages
+  Function flow:
+    1. requireUserOrAdmin → determines sender role from which JWT validated
+    2. messageController.sendMessage()
+    3. messageContentSchema.safeParse() → validates content non-empty, max 10000 chars
+    4. messageService.sendMessage()
+       a. Engagement.findById() → 404 if not found
+       b. If user: engagement.userId !== userId → 403
+       c. engagement.status === 'delivered' → 403 messaging locked
+       d. Message.create() → saves engagementId, senderId, senderRole, content
+       e. notificationService.createNotification()
+          → if user sent: type: new_message → admin-global
+          → if admin sent: type: new_message → userId
+    5. formatResponse() → returns created message
+
+FEATURE 11.2 — Read Message History
+  What it does: Returns full conversation thread in chronological order.
+  Route: GET /engagements/:id/messages
+  Function flow:
+    1. requireUserOrAdmin → verifies either JWT
+    2. messageController.getMessages()
+    3. messageService.getMessages()
+       a. Engagement.findById() → 404 if not found
+       b. If user: ownership check → 403 if not theirs
+       c. Message.find({ engagementId }).sort({ createdAt: 1 }) → oldest first
+    4. formatResponse() → returns messages array
+
+================================================================
+FEATURE AREA 12 — FILE REFERENCES
+================================================================
+
+FEATURE 12.1 — Attach File to Engagement (Admin)
+  What it does: Attaches an external file URL as a deliverable.
+  Route: POST /engagements/:id/files/admin
+  The backend stores the URL only — actual file hosting is external.
+  Function flow:
+    1. requireAdmin → verifies admin JWT, attaches adminId
+    2. fileReferenceController.attachFile()
+    3. fileReferenceSchema.safeParse() → validates fileName, fileUrl (valid URL), fileType
+    4. fileReferenceService.attachFile()
+       a. Engagement.findById() → 404 if not found
+       b. FileReference.create() → saves engagementId, fileName, fileUrl, fileType, uploadedBy: adminId
+    5. formatResponse() → returns created file reference
+
+FEATURE 12.2 — List Files for Engagement
+  What it does: Returns all file references attached to an engagement.
+  Route: GET /engagements/:id/files
+  Function flow:
+    1. requireUserOrAdmin → verifies either JWT
+    2. fileReferenceController.getFiles()
+    3. fileReferenceService.getFiles()
+       a. Engagement.findById() → 404 if not found
+       b. If user: engagement.userId !== userId → 403
+       c. FileReference.find({ engagementId }).sort({ createdAt: -1 }) → newest first
+    4. formatResponse() → returns files array
+
+================================================================
+FEATURE AREA 13 — IN-ENGAGEMENT QUESTIONNAIRES
+================================================================
+
+FEATURE 13.1 — Create Questionnaire for Engagement (Admin)
+  What it does: Assigns a new questionnaire to a client. Notifies them.
+  Route: POST /engagements/:id/questionnaires/admin
+  Function flow:
+    1. requireAdmin → verifies admin JWT
+    2. questionnaireController.createQuestionnaire()
+    3. createQuestionnaireSchema.safeParse() → validates title and deadline
+    4. questionnaireService.createQuestionnaire()
+       a. Engagement.findById() → 404 if not found
+       b. engagement.status === 'delivered' → 403 blocked
+       c. Questionnaire.create() → saves engagementId, title, deadline, isSubmitted: false
+       d. notificationService.createNotification()
+          → type: questionnaire_assigned → userId
+    5. formatResponse() → returns created questionnaire
+
+FEATURE 13.2 — Add Question to Questionnaire (Admin)
+  What it does: Appends one question to an existing questionnaire.
+  Route: POST /questionnaires/:id/questions/admin
+  Function flow:
+    1. requireAdmin → verifies admin JWT
+    2. questionnaireController.addQuestion()
+    3. addQuestionSchema.safeParse() → validates text (non-empty) and order (integer)
+    4. questionnaireService.addQuestion()
+       a. Questionnaire.findById() → 404 if not found
+       b. questionnaire.isSubmitted → 403 if already answered
+       c. Question.create() → saves questionnaireId, text, order
+    5. formatResponse() → returns created question
+
+FEATURE 13.3 — View Questionnaires (User)
+  What it does: Returns all questionnaires for engagement with questions and own answers.
+  Route: GET /engagements/:id/questionnaires
+  Function flow:
+    1. requireUser → verifies user JWT
+    2. questionnaireController.getQuestionnaires()
+    3. questionnaireService.getQuestionnaires()
+       a. Engagement.findById() → ownership check → 403 if not theirs
+       b. Questionnaire.find({ engagementId }) → all questionnaires
+       c. For each: Question.find({ questionnaireId }) → questions
+       d. For each: Answer.find({ questionnaireId, userId }) → user's own answers
+    4. formatResponse() → returns questionnaires with questions + answers embedded
+
+FEATURE 13.4 — View Questionnaires with All Answers (Admin)
+  What it does: Returns all questionnaires with every submitted answer.
+  Route: GET /engagements/:id/questionnaires/admin
+  Function flow:
+    1. requireAdmin → verifies admin JWT
+    2. questionnaireController.getQuestionnairesAdmin()
+    3. questionnaireService.getQuestionnairesAdmin()
+       a. Engagement.findById() → 404 check
+       b. Questionnaire.find({ engagementId })
+       c. For each: Question.find({ questionnaireId })
+       d. For each: Answer.find({ questionnaireId }) → all answers, not filtered by user
+    4. formatResponse() → returns full picture for admin review
+
+FEATURE 13.5 — Submit Questionnaire Answers (User)
+  What it does: User submits all answers. Locks questionnaire permanently. Notifies admin.
+  Route: POST /questionnaires/:id/submit
+  Function flow:
+    1. requireUser → verifies user JWT, attaches userId
+    2. questionnaireController.submitAnswers()
+    3. submitAnswersSchema.safeParse() → validates answers array (questionId + answerText per item)
+    4. questionnaireService.submitAnswers()
+       a. Questionnaire.findById() → 404 if not found
+       b. Engagement.findById(questionnaire.engagementId) → ownership check
+       c. engagement.status === 'delivered' → 403 blocked
+       d. questionnaire.isSubmitted → 409 already submitted
+       e. Answer.insertMany() → bulk saves all answers with questionnaireId + engagementId + userId
+       f. Questionnaire.findByIdAndUpdate({ isSubmitted: true, submittedAt: now })
+       g. notificationService.createNotification()
+          → type: questionnaire_submitted → admin-global
+    5. formatResponse() → returns confirmation + submittedAt timestamp
+
+================================================================
+FEATURE AREA 14 — FEEDBACK
+================================================================
+
+FEATURE 14.1 — Submit Post-Delivery Feedback (User)
+  What it does: User rates their engagement after delivery. One submission only.
+  Route: POST /feedback/engagements/:id
+  Function flow:
+    1. requireUser → verifies user JWT, attaches userId
+    2. feedbackController.submitFeedback()
+    3. submitFeedbackSchema.safeParse() → validates rating (integer 1-5), optional comments
+    4. feedbackService.submitFeedback()
+       a. Engagement.findById() → 404 if not found
+       b. engagement.userId !== userId → 403 not owner
+       c. engagement.status !== 'delivered' → 403 not yet delivered
+       d. Feedback.findOne({ engagementId }) → 409 if already submitted
+       e. Feedback.create() → saves engagementId, userId, rating, comments
+       f. notificationService.createNotification()
+          → type: feedback_submitted → admin-global
+    5. formatResponse() → returns created feedback
+
+FEATURE 14.2 — View All Feedback (Admin)
+  What it does: Returns all feedback across every engagement, newest first.
+  Route: GET /feedback/admin
+  Function flow:
+    1. requireAdmin → verifies admin JWT
+    2. feedbackController.getAllFeedback()
+    3. feedbackService.getAllFeedback()
+       a. Feedback.find().populate('userId', 'email').populate('engagementId', 'status')
+       b. Sorted by createdAt descending
+    4. formatResponse() → returns feedback list with total count
+
+FEATURE 14.3 — View Feedback for Specific Engagement (Admin)
+  What it does: Returns feedback for one engagement. Returns null if not yet submitted.
+  Route: GET /feedback/admin/engagements/:id
+  Function flow:
+    1. requireAdmin → verifies admin JWT
+    2. feedbackController.getFeedbackForEngagement()
+    3. feedbackService.getFeedbackForEngagement()
+       a. Engagement.findById() → 404 if engagement not found
+       b. Feedback.findOne({ engagementId }).populate('userId', 'email')
+       c. Returns null if no feedback yet (not a 404 — valid state)
+    4. formatResponse() → returns feedback object or null with appropriate message
+
+================================================================
+FEATURE AREA 15 — NOTIFICATIONS
+================================================================
+
+FEATURE 15.1 — View My Notifications (User)
+  What it does: Returns all notifications for the logged-in user, newest first.
+  Route: GET /notifications
+  Function flow:
+    1. requireUser → verifies user JWT, attaches userId
+    2. notificationController.getUserNotifications()
+    3. notificationService.getNotificationsForUser()
+       a. Notification.find({ recipientId: userId, recipientRole: 'user' })
+       b. Sorted by createdAt descending
+    4. formatResponse() → returns notifications + total + unread count
+
+FEATURE 15.2 — View Admin Notifications (Admin)
+  What it does: Returns all admin-directed notifications. All admins share one pool.
+  Route: GET /notifications/admin
+  Function flow:
+    1. requireAdmin → verifies admin JWT
+    2. notificationController.getAdminNotifications()
+    3. notificationService.getNotificationsForAdmin()
+       a. Notification.find({ recipientRole: 'admin' }) → recipientId: 'admin-global'
+       b. Sorted by createdAt descending
+    4. formatResponse() → returns notifications + total + unread count
+
+FEATURE 15.3 — Mark Notification as Read
+  What it does: Sets isRead = true for one notification. Ownership enforced.
+  Route: PATCH /notifications/:id/read
+  Function flow:
+    1. requireUserOrAdmin → determines role from JWT
+    2. notificationController.markAsRead()
+    3. notificationService.markAsRead()
+       a. Builds query:
+          - Admin: { _id, recipientRole: 'admin' }
+          - User:  { _id, recipientId: userId, recipientRole: 'user' }
+       b. Notification.findOneAndUpdate(query, { isRead: true }, { new: true })
+       c. Returns null if not found or wrong owner → 404
+    4. formatResponse() → returns updated notification
+
+================================================================
+NOTIFICATION TRIGGERS SUMMARY
+(Internal — no route — fires automatically inside other services)
+================================================================
+
+  notificationService.createNotification() is called:
+
+  → contact.service.ts — submit()
+    type: contact_form_submitted | to: admin-global
+    Fires when: any visitor submits a contact enquiry
+
+  → purchaseFlow.service.ts — fulfillAfterPayment()
+    type: new_engagement | to: admin-global
+    Fires when: payment webhook confirms and engagement is created
+
+  → purchaseFlow.service.ts — fulfillAfterPayment()
+    type: payment_success | to: userId
+    Fires when: payment webhook confirms — tells user their engagement started
+
+  → message.service.ts — sendMessage()
+    type: new_message | to: admin-global (when user sends) or userId (when admin sends)
+    Fires when: either party sends a message in an engagement thread
+
+  → questionnaire.service.ts — createQuestionnaire()
+    type: questionnaire_assigned | to: userId
+    Fires when: admin creates a questionnaire for a client
+
+  → questionnaire.service.ts — submitAnswers()
+    type: questionnaire_submitted | to: admin-global
+    Fires when: user submits their questionnaire answers
+
+  → checklist.service.ts — deliverEngagement()
+    type: engagement_delivered | to: userId
+    Fires when: admin marks engagement as delivered
+
+  → feedback.service.ts — submitFeedback()
+    type: feedback_submitted | to: admin-global
+    Fires when: user submits post-delivery feedback
+
+  IMPORTANT: createNotification() wraps its DB write in try/catch and
+  never throws. A notification failure will NEVER break the operation
+  that triggered it. It logs the error and silently continues.
+
+================================================================
+COMPLETE FEATURE COUNT
+================================================================
+
+  System             1 feature   (health check)
+  Admin Auth         1 feature   (admin login)
+  Newsletter         2 features  (subscribe, list subscribers)
+  Contact Form       5 features  (submit, list, view, update status, add note)
+  Services           5 features  (list, get one, create, update, toggle status)
+  Coupons            4 features  (create, list, toggle status, validate)
+  User Identity      4 features  (login, resolve-dev, list users, reset password)
+  Payments           2 features  (create order, webhook fulfillment)
+  Engagements        6 features  (list mine, view one, purchase brief × user+admin, view all, view any)
+  Checklist          4 features  (toggle step, replace checklist, view progress, deliver)
+  Messaging          2 features  (send message, read history)
+  Files              2 features  (attach file, list files)
+  Questionnaires     5 features  (create, add question, view user, view admin, submit)
+  Feedback           3 features  (submit, view all, view by engagement)
+  Notifications      3 features  (view user, view admin, mark read)
+  ─────────────────────────────────────────────────────
+  TOTAL             49 features across 15 functional areas
+
+================================================================

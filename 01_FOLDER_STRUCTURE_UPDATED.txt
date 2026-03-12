@@ -1,0 +1,196 @@
+================================================================
+CONSULTING PLATFORM BACKEND — ACTUAL FOLDER STRUCTURE
+Matches your real project as of Stage 16 completion | 78 files
+================================================================
+
+consulting-platform-backend/
+│
+├── .env                                ← Your actual secrets — never commit to git
+├── .env.example                        ← Safe-to-commit template of every required variable
+├── .gitignore                          ← Ignores node_modules, dist, .env
+├── package.json                        ← Dependencies and scripts (dev, build, start, seed)
+├── package-lock.json                   ← Locked dependency tree for reproducible installs
+├── tsconfig.json                       ← TypeScript compiler config (strict, ES2020, commonjs)
+│
+└── src/
+    │
+    ├── app.ts                          ← Assembles Express app: middleware order, all route mounts, 404 + error handlers
+    ├── server.ts                       ← Entry point: connects DB, starts HTTP server, handles shutdown signals
+    │
+    ├── core/                           ← Shared infrastructure — used by every module, never imports from modules
+    │   │
+    │   ├── config/
+    │   │   └── env.ts                  ← Validates all env vars at startup, crashes intentionally if any are missing
+    │   │
+    │   ├── database/
+    │   │   ├── database.ts             ← Opens MongoDB connection, logs connect/disconnect/error events
+    │   │   └── seed.ts                 ← Creates admin accounts from ADMIN_SEEDS env var, safe to re-run anytime
+    │   │
+    │   ├── errors/
+    │   │   └── AppError.ts             ← Custom error class with statusCode so errorHandler sends the right HTTP status
+    │   │
+    │   ├── logger/
+    │   │   └── logger.ts               ← Structured logger: debug/info/warn/error levels, colours in dev, timestamps always
+    │   │
+    │   ├── middleware/
+    │   │   ├── errorHandler.ts         ← Global catch-all: converts every thrown error into { success, message } JSON
+    │   │   ├── requestLogger.ts        ← Logs method + path on arrival and status + duration on completion
+    │   │   ├── requireAdmin.ts         ← Verifies admin JWT, rejects with 401 if invalid, attaches adminId + adminEmail to req
+    │   │   └── requireUser.ts          ← Verifies user JWT, rejects with 401 if invalid, attaches userId + userEmail to req
+    │   │
+    │   └── utils/
+    │       ├── formatResponse.ts       ← Every response goes through this: { success, message, data } shape always
+    │       └── generateToken.ts        ← Signs a JWT with the app secret for any payload at any expiry duration
+    │
+    └── modules/                        ← One folder per feature domain
+        │
+        ├── admin/                      ← STAGE 1
+        │   ├── admin.model.ts          ← Admin DB document: email, hashedPassword; comparePassword() bcrypt method; strips password from JSON
+        │   ├── admin.validator.ts      ← Zod schema: login body must have valid email + non-empty password
+        │   ├── admin.service.ts        ← login(): verify credentials + return JWT; seedAdmin(): idempotent admin creation
+        │   ├── admin.controller.ts     ← HTTP handler for POST /admin/login
+        │   └── admin.routes.ts         ← Registers POST /admin/login as public route
+        │
+        ├── newsletter/                 ← STAGE 2
+        │   ├── newsletter.model.ts     ← Subscriber document: email with unique index + lowercase transform
+        │   ├── newsletter.validator.ts ← Zod schema: subscribe body must have valid email
+        │   ├── newsletter.service.ts   ← subscribe(): duplicate check then create; getAllSubscribers(): returns full list
+        │   ├── newsletter.controller.ts ← Handlers for subscribe and list
+        │   └── newsletter.routes.ts    ← Public subscribe + admin-only list
+        │
+        ├── contact/                    ← STAGE 3
+        │   ├── contact.model.ts        ← ContactMessage (name, email, message, status) + AdminNote (text, adminId, contactMessageId)
+        │   ├── contact.validator.ts    ← Zod schemas for submit form, status update, and note text
+        │   ├── contact.service.ts      ← Submit (+ notify admin), list all, get one with notes, update status, add note
+        │   ├── contact.controller.ts   ← Handlers for all 5 contact endpoints
+        │   └── contact.routes.ts       ← 1 public submit + 4 admin-only endpoints
+        │
+        ├── services/                   ← STAGE 4
+        │   ├── services.model.ts       ← Service document: title, description, price, type, isActive, defaultChecklist[]
+        │   ├── services.validator.ts   ← Zod schemas for create, update, and status toggle
+        │   ├── services.service.ts     ← getAll() and getById() filter active only; full CRUD for admin
+        │   ├── services.controller.ts  ← Handlers for all 5 service endpoints
+        │   └── services.routes.ts      ← 2 public GET + 3 admin POST/PUT/PATCH
+        │
+        ├── coupons/                    ← STAGE 5
+        │   ├── coupon.model.ts         ← Coupon document: code (uppercase), flat price override, serviceId ref, isActive, expiryDate
+        │   ├── coupon.validator.ts     ← Zod schemas for create, toggle status, and validate coupon
+        │   ├── coupon.service.ts       ← validateCoupon() 4-step check; create verifies service exists; toggle; getAll
+        │   ├── coupon.controller.ts    ← Handlers for all 4 coupon endpoints
+        │   └── coupon.routes.ts        ← 3 admin-only + 1 public validate endpoint
+        │
+        ├── identity/                   ← STAGE 6
+        │   ├── identity.model.ts       ← User document: email (unique), hashedPassword; comparePassword(); strips password from all JSON output
+        │   ├── identity.validator.ts   ← Zod schemas for login and resolve bodies
+        │   ├── identity.service.ts     ← login(), resolveOrCreateUser() (called by purchase flow), resetPassword(), getAllUsers()
+        │   ├── identity.controller.ts  ← Handlers for login, resolve, list users, reset password
+        │   └── identity.routes.ts      ← Public login + dev resolve + admin list + admin reset-password
+        │
+        ├── payments/                   ← STAGE 7
+        │   ├── payment.model.ts        ← Payment document: Razorpay IDs, amount in paise, status, serviceId, userId, couponId, purchaseAnswers[]
+        │   ├── payment.validator.ts    ← Zod schema: create-order body (serviceId, userEmail, optional couponCode + answers)
+        │   ├── payment.service.ts      ← createOrder() calls Razorpay SDK; verifyWebhookSignature() HMAC check; linkEngagementToPayment()
+        │   ├── purchaseFlow.service.ts ← Orchestrator: initiateOrder() validates + prices; fulfillAfterPayment() creates user+engagement+questionnaire
+        │   ├── payment.controller.ts   ← createOrder handler (user auth) + webhook handler (raw body, no user auth)
+        │   └── payment.routes.ts       ← POST create-order (requireUser) + POST webhook (express.raw before json parser)
+        │
+        ├── engagements/                ← STAGES 7–9 (model + service + controller + routes + purchase questionnaire model)
+        │   ├── engagement.model.ts     ← Engagement document: userId, serviceId, status, engagementChecklist[], progressPercent, canDeliver
+        │   ├── engagement.service.ts   ← Get for user (ownership), get for admin (any), purchase answer reads
+        │   ├── engagement.controller.ts ← Handlers for all engagement and purchase-answer read endpoints
+        │   ├── engagement.routes.ts    ← Central router: mounts checklist, message, file, and questionnaire sub-routes
+        │   └── purchaseQuestionnaire.model.ts ← Permanent snapshot of checkout answers: engagementId, answers[] — never modified
+        │
+        ├── checklists/                 ← STAGE 13 (separate module in your structure)
+        │   ├── checklist.validator.ts  ← Zod schemas: toggle step body (isCompleted bool) + replace checklist body (steps[])
+        │   ├── checklist.service.ts    ← toggleStep() + recalculateProgress(); updateChecklist() preserves completion; deliverEngagement() requires 100%
+        │   └── checklist.controller.ts ← Handlers for toggle, replace, get checklist, deliver — routes live in engagement.routes.ts
+        │
+        ├── messages/                   ← STAGE 9
+        │   ├── message.model.ts        ← Message document: engagementId, senderId, senderRole (user/admin), content, timestamps
+        │   ├── message.validator.ts    ← Zod schema: content non-empty, max 10000 chars
+        │   ├── message.service.ts      ← sendMessage() checks ownership + delivery lock + notifies; getMessages() returns chronological history
+        │   ├── message.controller.ts   ← Send and get handlers; senderRole determined from which JWT middleware ran
+        │   └── message.routes.ts       ← Nested router (mergeParams: true) — accepts user or admin JWT for both endpoints
+        │
+        ├── files/                      ← STAGE 10
+        │   ├── fileReference.model.ts  ← FileReference document: engagementId, fileName, fileUrl, fileType, uploadedBy (adminId)
+        │   ├── fileReference.validator.ts ← Zod schema: fileName, fileUrl (must be valid URL string), fileType
+        │   ├── fileReference.service.ts ← attachFile() admin-only; getFiles() enforces user ownership
+        │   ├── fileReference.controller.ts ← Attach and get handlers
+        │   └── fileReference.routes.ts ← Nested router (mergeParams: true): admin attach + user-or-admin get
+        │
+        ├── questionnaires/             ← STAGE 11 (separate module in your structure)
+        │   ├── questionnaire.model.ts  ← Three documents: Questionnaire (title, deadline, isSubmitted), Question (text, order), Answer (answerText, userId)
+        │   ├── questionnaire.validator.ts ← Zod schemas for create questionnaire, add question, and submit answers
+        │   ├── questionnaire.service.ts ← Admin creates + adds questions; user submits + locks; both sides get views; notifies on assign + submit
+        │   ├── questionnaire.controller.ts ← Handlers for create, addQuestion, getUser, getAdmin, submit
+        │   └── questionnaire.routes.ts ← Exports two routers: engagementQuestionnaireRouter (nested) + questionnaireRouter (standalone /questionnaires)
+        │
+        ├── feedbacks/                  ← STAGE 14 (named feedbacks in your structure)
+        │   ├── feedback.model.ts       ← Feedback document: engagementId (unique index), userId, rating (1-5), optional comments
+        │   ├── feedback.validator.ts   ← Zod schema: rating must be integer 1-5; comments optional max 5000 chars
+        │   ├── feedback.service.ts     ← submitFeedback(): requires delivered + no existing feedback; notifies admin on submit
+        │   ├── feedback.controller.ts  ← Submit (user) + get all (admin) + get by engagement (admin) handlers
+        │   └── feedback.routes.ts      ← User POST submit + 2 admin GET read endpoints
+        │
+        └── notifications/              ← STAGE 16
+            ├── notification.model.ts   ← Notification document: recipientId, recipientRole, type, message, engagementId, isRead
+            ├── notification.service.ts ← createNotification() never throws (fire-and-forget); getForUser(); getForAdmin(); markAsRead() with ownership
+            ├── notification.controller.ts ← Get user notifications, get admin notifications, mark-as-read handlers
+            └── notification.routes.ts  ← GET user + GET admin + PATCH mark-read (user-or-admin)
+
+
+================================================================
+KEY STRUCTURAL NOTES (your setup vs original build)
+================================================================
+
+1. checklists/ is a standalone module
+   checklist.controller, service, and validator live here.
+   There is no checklist.routes.ts — the routes are registered
+   directly in engagements/engagement.routes.ts which imports
+   checklistController from '../checklists/checklist.controller.js'
+
+2. questionnaires/ is a standalone module
+   All 5 questionnaire files live here including the model.
+   questionnaire.routes.ts exports TWO routers:
+     - engagementQuestionnaireRouter → imported by engagement.routes.ts
+       for nested /engagements/:id/questionnaires paths
+     - questionnaireRouter → imported by app.ts
+       for standalone /questionnaires/:id/... paths
+
+3. feedbacks/ folder name is plural
+   All imports in app.ts and within the module use this exact name.
+   No mismatch — consistent throughout.
+
+4. engagements/ no longer contains questionnaire or checklist files
+   Those moved to their own modules. engagements/ now only contains
+   the core engagement files + purchaseQuestionnaire.model.ts
+   (purchase questionnaire stays in engagements because it is
+   created exclusively by the purchase flow, not by the admin)
+
+================================================================
+FILE COUNT BY MODULE
+================================================================
+
+  core/                    10 files
+  admin/                    5 files
+  newsletter/               5 files
+  contact/                  5 files
+  services/                 5 files
+  coupons/                  5 files
+  identity/                 5 files
+  payments/                 6 files
+  engagements/              5 files
+  checklists/               3 files  (no routes file — routes in engagement.routes.ts)
+  messages/                 5 files
+  files/                    5 files
+  questionnaires/           5 files
+  feedbacks/                5 files
+  notifications/            4 files  (no validator — no user-submitted body validation needed)
+  ──────────────────────────────────
+  + app.ts + server.ts      2 files
+  ──────────────────────────────────
+  TOTAL                    80 files
+
+================================================================

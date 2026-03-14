@@ -4,6 +4,7 @@ import { Payment } from './payment.model.js';
 import { AppError } from '../../core/errors/AppError.js';
 import { logger } from '../../core/logger/logger.js';
 import { env } from '../../core/config/env.js';
+import mongoose from 'mongoose';
 
 let razorpayInstance: Razorpay | null = null;
 
@@ -19,7 +20,7 @@ const getRazorpay = (): Razorpay => {
 
 export interface CreateOrderInput {
   serviceId:          string;
-  couponId?:          string;
+  couponId?:          string | undefined;
   finalAmountInPaise: number;
   purchaseAnswers?:   object;
   userEmail:          string;
@@ -35,46 +36,51 @@ export const paymentService = {
    * The purchaseAnswers snapshot (including userEmail) is stored here so
    * fulfillAfterPayment can retrieve everything it needs from one document.
    */
-  async createOrder(
-    input: CreateOrderInput
-  ): Promise<{ orderId: string; amount: number; currency: string }> {
-    const razorpay = getRazorpay();
+// payment.service.ts
 
-    const order = await razorpay.orders.create({
-      amount:   input.finalAmountInPaise,
-      currency: 'INR',
-      receipt:  `rcpt_${Date.now()}`,
-      notes: {
-        serviceId: input.serviceId,
-        userEmail: input.userEmail,
-      },
-    });
+async createOrder(input: CreateOrderInput): Promise<{ orderId: string; amount: number; currency: string }> {
+  console.log("5. [PaymentService] Starting Razorpay order creation...");
+  const razorpay = getRazorpay();
 
-    // Store pending payment — purchaseAnswers wraps both the user's
-    // form answers AND the userEmail so fulfillment has everything in one place
-    
-    // FIXED: Conditionally spread couponId to avoid passing 'undefined' to Mongoose
-    await Payment.create({
-      razorpayOrderId: order.id,
-      amount:          input.finalAmountInPaise,
-      currency:        'INR',
-      status:          'pending',
-      serviceId:       input.serviceId,
-      ...(input.couponId !== undefined && { couponId: input.couponId }),
-      purchaseAnswers: {
-        userEmail:       input.userEmail,
-        answers:         input.purchaseAnswers ?? [],
-      },
-    });
-
-    logger.info('[Payment] Razorpay order created', {
-      orderId:   order.id,
+  const order = await razorpay.orders.create({
+    amount:   input.finalAmountInPaise,
+    currency: 'INR',
+    receipt:  `rcpt_${Date.now()}`,
+    notes: {
       serviceId: input.serviceId,
-      amount:    input.finalAmountInPaise,
-    });
+      userEmail: input.userEmail,
+    },
+  });
 
-    return { orderId: order.id, amount: input.finalAmountInPaise, currency: 'INR' };
-  },
+  console.log("6. [PaymentService] Razorpay order created:", order.id);
+
+  const paymentData: any = {
+    razorpayOrderId: order.id,
+    amount:          input.finalAmountInPaise,
+    currency:        'INR',
+    status:          'pending',
+    serviceId:       new mongoose.Types.ObjectId(input.serviceId),
+   userEmail:       input.userEmail,          // <--- Move to root level
+  purchaseAnswers: input.purchaseAnswers || [], // <--- Keep as a clean array
+  };
+
+  if (input.couponId) {
+    paymentData.couponId = new mongoose.Types.ObjectId(input.couponId);
+  }
+
+  console.log("7. [PaymentService] Attempting Mongoose Payment.create with:", JSON.stringify(paymentData, null, 2));
+
+  try {
+    const savedPayment = await Payment.create(paymentData);
+    console.log("8. [PaymentService] Mongoose Save Success! ID:", savedPayment._id);
+  } catch (dbErr: any) {
+    console.error("🚨 [PaymentService] MONGOOSE CRASH:");
+    console.error(dbErr);
+    throw dbErr; // Re-throw so the controller catch block sees it
+  }
+
+  return { orderId: order.id, amount: input.finalAmountInPaise, currency: 'INR' };
+},
 
   /**
    * handleWebhook

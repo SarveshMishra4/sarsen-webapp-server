@@ -7,9 +7,9 @@ export const createOrderSchema = z.object({
   purchaseAnswers: z
     .array(
       z.object({
-        questionKey:   z.string().min(1, 'questionKey is required'),
-        questionLabel: z.string().min(1, 'questionLabel is required'),
-        answer:        z.string().min(1, 'answer cannot be empty'),
+        questionId:   z.string(),
+        questionText: z.string(),
+        answer:       z.string(),
       })
     )
     .optional(),

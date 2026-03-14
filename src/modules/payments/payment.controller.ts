@@ -5,6 +5,7 @@ import { createOrderSchema } from './payment.validator.js';
 import { formatResponse } from '../../core/utils/formatResponse.js';
 import { AppError } from '../../core/errors/AppError.js';
 import { logger } from '../../core/logger/logger.js';
+import { env } from '../../core/config/env.js';
 
 export const paymentController = {
 
@@ -19,34 +20,37 @@ export const paymentController = {
    * 4. Return orderId + amount to frontend for Razorpay SDK
    */
   async createOrder(req: Request, res: Response, next: NextFunction): Promise<void> {
+    console.log("1. [Controller] Request received body:", JSON.stringify(req.body, null, 2));
+
     try {
       const parsed = createOrderSchema.safeParse(req.body);
-      
+
       if (!parsed.success) {
-        // FIXED: Using .issues with optional chaining and a fallback 
-        // to satisfy both Zod typings and strict 'noUncheckedIndexedAccess'
-        const errorMessage = parsed.error.issues[0]?.message || 'Invalid input provided';
-        throw new AppError(errorMessage, 400);
+        console.error("2. [Controller] Zod Validation Failed:", parsed.error.format());
+        throw new AppError(parsed.error.issues[0]?.message || 'Invalid input', 400);
       }
 
-      // Store userEmail inside purchaseAnswers wrapper so it travels
-      // with the payment record and is available to fulfillAfterPayment
-      
-      // FIXED: Conditionally spreading optional properties to respect 'exactOptionalPropertyTypes: true'
-      const orderInput = {
-        serviceId:  parsed.data.serviceId,
-        userEmail:  parsed.data.userEmail,
-        ...(parsed.data.couponCode !== undefined && { couponCode: parsed.data.couponCode }),
-        ...(parsed.data.purchaseAnswers !== undefined && { purchaseAnswers: parsed.data.purchaseAnswers }),
-      };
+      console.log("3. [Controller] Validation Success. Calling purchaseFlowService...");
+      const result = await purchaseFlowService.createOrder(parsed.data);
 
-      const result = await purchaseFlowService.createOrder(orderInput);
-
+      console.log("4. [Controller] Service returned result. Sending 200 OK.");
       res.status(200).json(
-        formatResponse(true, 'Order created successfully.', result)
+        formatResponse(true, 'Order created successfully.', {
+          ...result,
+          keyId: env.RAZORPAY_KEY_ID // Ensure this isn't undefined
+        })
       );
-    } catch (err) {
-      next(err);
+    } catch (err: any) {
+      console.error("❌ [Controller] CRASH DETECTED:");
+      // ADD THESE TWO LINES:
+      console.error("FULL ERROR:", JSON.stringify(err, null, 2));
+      console.error("ERROR KEYS:", Object.keys(err));
+
+      res.status(err.statusCode || 500).json({
+        success: false,
+        message: err.message || "Internal Server Error",
+        stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+      });
     }
   },
 
@@ -84,8 +88,8 @@ export const paymentController = {
 
         logger.info('[Webhook] Fulfillment complete', {
           engagementId: fulfillResult.engagementId,
-          userId:       fulfillResult.userId,
-          isNewUser:    fulfillResult.isNewUser,
+          userId: fulfillResult.userId,
+          isNewUser: fulfillResult.isNewUser,
         });
 
         // If user is new, log the plain password.
@@ -93,7 +97,7 @@ export const paymentController = {
         // The password is never stored in plain text — this is the only moment it exists.
         if (fulfillResult.isNewUser && fulfillResult.plainPassword) {
           logger.info('[Webhook] NEW USER CREDENTIALS — deliver to user', {
-            email:    fulfillResult.userEmail,
+            email: fulfillResult.userEmail,
             password: fulfillResult.plainPassword,
           });
         }

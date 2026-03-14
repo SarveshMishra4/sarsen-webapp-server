@@ -100,10 +100,10 @@ app.use(requestLogger);
 // ─── CRITICAL: Webhook route uses raw body ────────────────────────────────────
 // Must be registered BEFORE express.json() below.
 // express.json() would consume the raw body and break Razorpay signature verification.
-app.use(
-  '/payments/webhook',
-  express.raw({ type: 'application/json' })
-);
+// app.use(
+//   '/payments/webhook',
+//   express.raw({ type: 'application/json' })
+// );
 
 // ─── Body Parsers ─────────────────────────────────────────────────────────────
 // All other routes get parsed JSON bodies

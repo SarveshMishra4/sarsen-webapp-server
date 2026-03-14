@@ -11,7 +11,8 @@ export interface IPayment extends Document {
   currency: string;
   status: PaymentStatus;
   serviceId: mongoose.Types.ObjectId;
-  userId?: mongoose.Types.ObjectId;       // Set after user identity is resolved
+  userEmail: string; // <--- Added userEmail to the model for easier access during fulfillment
+  userId?: string;       // Set after user identity is resolved
   couponId?: mongoose.Types.ObjectId;
   purchaseAnswers?: object;               // Snapshot of purchase questionnaire
   failureReason?: string;
@@ -21,6 +22,12 @@ export interface IPayment extends Document {
 
 const PaymentSchema = new Schema<IPayment>(
   {
+    userEmail: {        // <--- ADD THIS BLOCK
+      type: String,
+      required: true,   // Since we need it for fulfillment
+      trim: true,
+      lowercase: true,
+    },
     engagementId: {
       type: Schema.Types.ObjectId,
       ref: 'Engagement',

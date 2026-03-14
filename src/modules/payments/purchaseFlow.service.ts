@@ -212,20 +212,31 @@ export const purchaseFlowService = {
       serviceId: paymentRecord.serviceId.toString(),
     });
 
-    // ── Step 6: Store purchase questionnaire ───────────────────────────────
-    const answers = Array.isArray(purchaseAnswers) ? purchaseAnswers : [];
-    if (Array.isArray(answers) && answers.length > 0) {
-      await PurchaseQuestionnaire.create({
-        engagementId: engagement._id,
-        answers,
-        submittedAt: new Date(),
-      });
+// ── Step 6: Store purchase questionnaire ───────────────────────────────────
+// FIELD NAME MAPPING:
+// Frontend sends and Payment record stores: { questionId, questionText, answer }
+// PurchaseQuestionnaire model requires:     { questionKey, questionLabel, answer }
+// We remap here before saving.
+const rawAnswers = Array.isArray(purchaseAnswers) ? purchaseAnswers : [];
 
-      logger.info('[PurchaseFlow] Purchase questionnaire stored', {
-        engagementId: engagement._id.toString(),
-        answerCount: answers.length,
-      });
-    }
+if (rawAnswers.length > 0) {
+  const mappedAnswers = rawAnswers.map((a: any) => ({
+    questionKey:   a.questionId   || a.questionKey   || '',
+    questionLabel: a.questionText || a.questionLabel || '',
+    answer:        a.answer       || '',
+  }));
+
+  await PurchaseQuestionnaire.create({
+    engagementId: engagement._id,
+    answers:      mappedAnswers,
+    submittedAt:  new Date(),
+  });
+
+  logger.info('[PurchaseFlow] Purchase questionnaire stored', {
+    engagementId: engagement._id.toString(),
+    answerCount:  mappedAnswers.length,
+  });
+}
 
     // ── Step 7: Link engagement + user back to payment record ──────────────
     // FIXED: Cast user to `any` to access `_id`

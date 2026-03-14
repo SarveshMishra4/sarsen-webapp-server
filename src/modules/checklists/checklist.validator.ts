@@ -1,8 +1,7 @@
 import { z } from 'zod';
 
 export const toggleStepSchema = z.object({
-  isCompleted: z.boolean({ invalid_type_error: 'isCompleted must be a boolean' }),
-});
+isCompleted: z.boolean({ message: 'isCompleted must be a boolean' }),});
 
 export const updateChecklistSchema = z.object({
   steps: z

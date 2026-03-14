@@ -16,8 +16,7 @@ export const addQuestionSchema = z.object({
     .min(1, 'Question text is required')
     .max(1000, 'Question text is too long'),
   order: z
-    .number({ invalid_type_error: 'order must be a number' })
-    .int()
+.number({ message: 'order must be a number' })    .int()
     .min(1, 'order must be a positive integer'),
 });
 

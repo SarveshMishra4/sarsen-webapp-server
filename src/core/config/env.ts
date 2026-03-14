@@ -21,15 +21,14 @@
 import dotenv from 'dotenv';
 import path from 'path';
 
-// Load .env file from project root
+// --- New Code ---
 const result = dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
 if (result.error) {
-  console.error('[ENV] Failed to load .env file:', result.error.message);
-  console.error('[ENV] Make sure a .env file exists in your project root.');
-  process.exit(1);
+  // We don't exit here! In production (like Render), the .env file won't exist.
+  // Render injects variables directly into process.env instead.
+  console.warn('[ENV] No .env file found. Relying on system environment variables.');
 }
-
 // ─── Required Variables ──────────────────────────────────────────────────────
 // Add any new required variable here. Server will not start if any are missing.
 

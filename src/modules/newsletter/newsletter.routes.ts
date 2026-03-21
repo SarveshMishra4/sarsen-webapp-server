@@ -10,4 +10,6 @@ router.post('/subscribe', newsletterController.subscribe);
 // GET /newsletter/admin/subscribers — admin only
 router.get('/admin/subscribers', requireAdmin, newsletterController.getAllSubscribers);
 
+router.delete('/admin/subscribers/:id', requireAdmin, newsletterController.deleteSubscriber); // ← new
+
 export default router;

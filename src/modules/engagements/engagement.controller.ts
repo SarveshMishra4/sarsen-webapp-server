@@ -1,6 +1,36 @@
 import { Request, Response, NextFunction } from 'express';
 import { engagementService } from './engagement.service.js';
 import { formatResponse } from '../../core/utils/formatResponse.js';
+import { IPurchaseQuestionnaire } from './purchaseQuestionnaire.model.js';
+
+// ─── Helper ───────────────────────────────────────────────────────────────────
+
+/**
+ * mapPurchaseAnswers
+ *
+ * The PurchaseQuestionnaire model stores answers with:
+ *   questionKey   — identifier
+ *   questionLabel — human-readable question text
+ *
+ * The frontend PurchaseAnswer interface expects:
+ *   questionId   — identifier
+ *   questionText — human-readable question text
+ *
+ * This function remaps before sending the response so the frontend
+ * receives the shape it expects without any DB schema change.
+ */
+function mapPurchaseAnswers(
+  pq: IPurchaseQuestionnaire | null
+): { questionId: string; questionText: string; answer: string }[] {
+  if (!pq) return [];
+  return pq.answers.map((a) => ({
+    questionId:   a.questionKey,
+    questionText: a.questionLabel,
+    answer:       a.answer,
+  }));
+}
+
+// ─── Controller ───────────────────────────────────────────────────────────────
 
 export const engagementController = {
 
@@ -34,7 +64,6 @@ export const engagementController = {
   async getUserEngagementById(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const engagement = await engagementService.getUserEngagementById(
-        // FIX: Cast Express params as string
         req.params.id as string,
         req.userId!
       );
@@ -76,7 +105,6 @@ export const engagementController = {
    */
   async getEngagementByIdAdmin(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      // FIX: Cast Express params as string
       const engagement = await engagementService.getEngagementByIdAdmin(req.params.id as string);
 
       res.status(200).json(
@@ -91,18 +119,25 @@ export const engagementController = {
 
   /**
    * GET /engagements/:id/purchase-answers
-   * User token required. Returns the user's own purchase questionnaire answers.
+   * User token required.
+   *
+   * Returns purchase questionnaire answers for the requesting user's own engagement.
+   *
+   * Field mapping applied here:
+   *   DB:       questionKey / questionLabel
+   *   Frontend: questionId  / questionText
    */
   async getPurchaseAnswers(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const answers = await engagementService.getPurchaseAnswersForUser(
-        // FIX: Cast Express params as string
+      const pq = await engagementService.getPurchaseAnswersForUser(
         req.params.id as string,
         req.userId!
       );
 
       res.status(200).json(
-        formatResponse(true, 'Purchase answers retrieved.', answers ?? { answers: [] })
+        formatResponse(true, 'Purchase answers retrieved.', {
+          answers: mapPurchaseAnswers(pq),
+        })
       );
     } catch (err) {
       next(err);
@@ -111,15 +146,23 @@ export const engagementController = {
 
   /**
    * GET /engagements/admin/:id/purchase-answers
-   * Admin token required. Returns purchase questionnaire answers for any engagement.
+   * Admin token required.
+   *
+   * Returns purchase questionnaire answers for any engagement.
+   * No ownership check — admin sees all.
+   *
+   * Field mapping applied here:
+   *   DB:       questionKey / questionLabel
+   *   Frontend: questionId  / questionText
    */
   async getPurchaseAnswersAdmin(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      // FIX: Cast Express params as string
-      const answers = await engagementService.getPurchaseAnswersAdmin(req.params.id as string);
+      const pq = await engagementService.getPurchaseAnswersAdmin(req.params.id as string);
 
       res.status(200).json(
-        formatResponse(true, 'Purchase answers retrieved.', answers ?? { answers: [] })
+        formatResponse(true, 'Purchase answers retrieved.', {
+          answers: mapPurchaseAnswers(pq),
+        })
       );
     } catch (err) {
       next(err);

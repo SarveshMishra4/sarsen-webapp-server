@@ -104,7 +104,7 @@ COUPONS
 POST /coupons/admin                                    ADMIN TOKEN
   Body: { code, price, serviceId, isActive, expiryDate }
   Creates a coupon linked to a specific service. Price is a flat override of the service price.
-  Returns 404 if serviceId does not exist. Code is stored uppercase automatically.
+  Returns 404 if serviceId does not exist. Code is storedautomatically.
   Frontend use: admin coupon creation form.
 
 GET /coupons/admin                                     ADMIN TOKEN

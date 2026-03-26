@@ -8,7 +8,7 @@ import { logger } from '../../core/logger/logger.js';
 const SALT_ROUNDS = 12;
 
 // Generates a random plain-text password that is readable and reasonably secure.
-// Format: 3 segments of 4 uppercase alphanumeric characters joined by hyphens.
+// Format: 3 segments of 4alphanumeric characters joined by hyphens.
 // Example: A3FX-9KPQ-2MZT
 const generatePlainPassword = (): string => {
   return Array.from({ length: 3 }, () =>

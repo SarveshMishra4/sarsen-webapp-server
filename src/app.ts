@@ -64,6 +64,7 @@ const ALLOWED_ORIGINS: string[] = [
   // Add your production frontend domain here:
   'https://sarsen-webapp-client.vercel.app',
   'https://sarsenpartners.com',
+  'http://sarsenpartners.com',
 ];
 
 const corsOptions: cors.CorsOptions = {

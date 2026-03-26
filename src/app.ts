@@ -65,6 +65,8 @@ const ALLOWED_ORIGINS: string[] = [
   'https://sarsen-webapp-client.vercel.app',
   'https://sarsenpartners.com',
   'http://sarsenpartners.com',
+  'https://www.sarsenpartners.com',
+  'http://www.sarsenpartners.com',
 ];
 
 const corsOptions: cors.CorsOptions = {

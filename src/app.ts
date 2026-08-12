@@ -55,6 +55,8 @@ import engagementRoutes from './modules/engagements/engagement.routes.js';
 import { questionnaireRouter } from './modules/questionnaires/questionnaire.routes.js';
 import feedbackRoutes from './modules/feedbacks/feedback.routes.js';
 import notificationRoutes from './modules/notifications/notification.routes.js';
+import leadMagnetRoutes from './modules/leadmagnets/leadmagnet.routes.js';
+// ...
 
 // ─── CORS Configuration ───────────────────────────────────────────────────────
 
@@ -139,6 +141,8 @@ app.use('/engagements', engagementRoutes);
 app.use('/questionnaires', questionnaireRouter);
 app.use('/feedback', feedbackRoutes);
 app.use('/notifications', notificationRoutes);
+app.use('/leadmagnets', leadMagnetRoutes);
+
 
 // ─── 404 Handler ─────────────────────────────────────────────────────────────
 // Catches any request that didn't match a registered route

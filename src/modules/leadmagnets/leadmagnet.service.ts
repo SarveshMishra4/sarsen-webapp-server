@@ -88,7 +88,10 @@ export const leadMagnetService = {
     const submission: ILeadMagnetSubmission = await LeadMagnetSubmission.create({
       clientId,
       leadMagnet: 'business_heat_map',
-      companyName,
+      // Spread instead of a plain `companyName,` key — under exactOptionalPropertyTypes,
+      // TS treats an explicit `companyName: undefined` as different from the key being
+      // absent entirely. This spread only adds the key when a value actually exists.
+      ...(companyName !== undefined ? { companyName } : {}),
       answers,
       result,
       clientStatusAtSubmission: isNewClient ? 'new' : 'existing',

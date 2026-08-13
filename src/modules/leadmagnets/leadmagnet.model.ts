@@ -1,5 +1,5 @@
 import mongoose, { Document, Schema } from 'mongoose';
-import { LEAD_MAGNET_TYPES, LeadMagnetType } from './leadmagnet.constants.js';
+import { LEAD_MAGNET_TYPES, LeadMagnetType, AnswerScaleValue } from './leadmagnet.constants.js';
 
 // ─── Client ─────────────────────────────────────────────────────────────────
 // One record per unique (normalized) email address. This is intentionally
@@ -44,8 +44,10 @@ export const Client = mongoose.model<IClient>('Client', ClientSchema);
 export interface ILeadMagnetSubmission extends Document {
   clientId: mongoose.Types.ObjectId;
   leadMagnet: LeadMagnetType;
-  companyName?: string;
-  answers: Record<string, number>;
+  founderName: string;
+  companyName: string;
+  industry: string;
+  answers: Record<string, AnswerScaleValue>;
   result: unknown; // shape varies per lead magnet type — see leadmagnet.service.ts
   clientStatusAtSubmission: 'new' | 'existing';
   createdAt: Date;
@@ -66,8 +68,22 @@ const LeadMagnetSubmissionSchema = new Schema<ILeadMagnetSubmission>(
       required: true,
       index: true,
     },
+    // NEW (v2)
+    founderName: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    // CHANGED (v2): was optional in v1, now required.
     companyName: {
       type: String,
+      required: true,
+      trim: true,
+    },
+    // NEW (v2)
+    industry: {
+      type: String,
+      required: true,
       trim: true,
     },
     answers: {

@@ -1,5 +1,5 @@
 import { Client, LeadMagnetSubmission, ILeadMagnetSubmission } from './leadmagnet.model.js';
-import { CANVAS_AREA_KEYS, QUESTION_TO_CANVAS_AREA, CanvasAreaKey } from './leadmagnet.constants.js';
+import { CANVAS_AREA_KEYS, QUESTION_TO_CANVAS_AREA, CanvasAreaKey, AnswerScaleValue } from './leadmagnet.constants.js';
 import { logger } from '../../core/logger/logger.js';
 
 // ─── Result shape for the Business Heat Map ──────────────────────────────────
@@ -17,9 +17,11 @@ interface BusinessHeatMapResult {
 
 // ─── Scoring ──────────────────────────────────────────────────────────────
 // Mirrors the frontend's getAreaScore/overall-average logic exactly, so the
-// number a founder sees on screen matches what gets stored.
+// number a founder sees on screen matches what gets stored. Works against
+// whatever question set is currently in QUESTION_TO_CANVAS_AREA (15 questions
+// as of v2), so it stays correct automatically if that map changes.
 
-function computeBusinessHeatMapResult(answers: Record<string, number>): BusinessHeatMapResult {
+function computeBusinessHeatMapResult(answers: Record<string, AnswerScaleValue>): BusinessHeatMapResult {
   const areaScores = {} as Record<CanvasAreaKey, number | null>;
 
   for (const area of CANVAS_AREA_KEYS) {
@@ -29,7 +31,7 @@ function computeBusinessHeatMapResult(answers: Record<string, number>): Business
 
     const values = questionIdsForArea
       .map((qId) => answers[qId])
-      .filter((v): v is number => v !== undefined);
+      .filter((v): v is AnswerScaleValue => v !== undefined);
 
     areaScores[area] = values.length > 0
       ? Math.round((values.reduce((sum, v) => sum + v, 0) / values.length) * 10) / 10
@@ -75,8 +77,10 @@ export const leadMagnetService = {
 
   async submitBusinessHeatMap(
     email: string,
-    companyName: string | undefined,
-    answers: Record<string, number>
+    founderName: string,
+    companyName: string,
+    industry: string,
+    answers: Record<string, AnswerScaleValue>
   ): Promise<{
     submissionId: string;
     clientStatus: 'new' | 'existing';
@@ -88,10 +92,9 @@ export const leadMagnetService = {
     const submission: ILeadMagnetSubmission = await LeadMagnetSubmission.create({
       clientId,
       leadMagnet: 'business_heat_map',
-      // Spread instead of a plain `companyName,` key — under exactOptionalPropertyTypes,
-      // TS treats an explicit `companyName: undefined` as different from the key being
-      // absent entirely. This spread only adds the key when a value actually exists.
-      ...(companyName !== undefined ? { companyName } : {}),
+      founderName,
+      companyName,
+      industry,
       answers,
       result,
       clientStatusAtSubmission: isNewClient ? 'new' : 'existing',

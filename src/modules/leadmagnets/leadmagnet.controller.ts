@@ -15,9 +15,9 @@ export const leadMagnetController = {
         throw new AppError(errorMessage, 400);
       }
 
-      const { email, companyName, answers } = parsed.data;
+      const { email, founderName, companyName, industry, answers } = parsed.data;
       const { submissionId, clientStatus, result } =
-        await leadMagnetService.submitBusinessHeatMap(email, companyName, answers);
+        await leadMagnetService.submitBusinessHeatMap(email, founderName, companyName, industry, answers);
 
       res.status(201).json(
         formatResponse(true, 'Submission received.', {

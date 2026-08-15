@@ -77,7 +77,11 @@ export const blogController = {
       const tag = typeof req.query.tag === 'string' ? req.query.tag : undefined;
       const page = req.query.page ? Number(req.query.page) : undefined;
       const limit = req.query.limit ? Number(req.query.limit) : undefined;
-      const result = await blogService.getPublishedList({ tag, page, limit });
+      const result = await blogService.getPublishedList({
+        ...(tag !== undefined && { tag }),
+        ...(page !== undefined && { page }),
+        ...(limit !== undefined && { limit }),
+      });
       res.status(200).json(formatResponse(true, 'Blogs retrieved.', result));
     } catch (err) {
       next(err);

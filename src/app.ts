@@ -56,6 +56,10 @@ import { questionnaireRouter } from './modules/questionnaires/questionnaire.rout
 import feedbackRoutes from './modules/feedbacks/feedback.routes.js';
 import notificationRoutes from './modules/notifications/notification.routes.js';
 import leadMagnetRoutes from './modules/leadmagnets/leadmagnet.routes.js';
+import blogRoutes from './modules/blogs/blog.routes.js';
+import uploadRoutes from './modules/uploads/upload.routes.js';
+
+
 // ...
 
 // ─── CORS Configuration ───────────────────────────────────────────────────────
@@ -142,6 +146,9 @@ app.use('/questionnaires', questionnaireRouter);
 app.use('/feedback', feedbackRoutes);
 app.use('/notifications', notificationRoutes);
 app.use('/leadmagnets', leadMagnetRoutes);
+// Blog routes must be registered before upload routes, because blog routes may include file uploads
+app.use('/blogs', blogRoutes);
+app.use('/uploads', uploadRoutes);
 
 
 // ─── 404 Handler ─────────────────────────────────────────────────────────────

@@ -3,8 +3,13 @@
  *
  * Single source of truth for the blog tag enum (the one colored badge shown
  * on every post) and the sanitize-html allowlist applied to `content` on
- * every create/update. Bold, links, and tables only — nothing else is
- * permitted through, regardless of what the rich text editor emits.
+ * every create/update.
+ *
+ * UPDATED: now allows h2/h3/h4 (three heading sizes) and img (inline
+ * images placed by the admin between paragraphs), on top of the original
+ * bold/links/tables. Deliberately does NOT allow h1 — the post title
+ * itself is already rendered as an h1 by the public page; a second one
+ * inside the body would hurt SEO/accessibility.
  */
 
 export const BLOG_TAGS = [
@@ -32,10 +37,13 @@ export type BlogStatus = (typeof BLOG_STATUSES)[number];
 export const SANITIZE_ALLOWED_TAGS = [
   'p', 'br', 'b', 'strong', 'a',
   'table', 'thead', 'tbody', 'tr', 'th', 'td',
+  'h2', 'h3', 'h4',
+  'img',
 ];
 
 export const SANITIZE_ALLOWED_ATTRIBUTES: Record<string, string[]> = {
   a: ['href', 'target', 'rel'],
+  img: ['src', 'alt', 'width', 'height'],
 };
 
 export const UPLOAD_FOLDERS = [

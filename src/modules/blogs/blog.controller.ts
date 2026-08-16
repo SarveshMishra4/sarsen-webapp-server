@@ -70,6 +70,22 @@ export const blogController = {
     }
   },
 
+  /**
+   * GET /blogs/admin/search?q=...&excludeId=...
+   * Powers the "Recommended Reading" search-and-pick widget in the admin
+   * blog form — lightweight title search across all posts.
+   */
+  async searchForRelatedPosts(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const query = typeof req.query.q === 'string' ? req.query.q : '';
+      const excludeId = typeof req.query.excludeId === 'string' ? req.query.excludeId : undefined;
+      const posts = await blogService.searchForRelatedPosts(query, excludeId);
+      res.status(200).json(formatResponse(true, 'Posts found.', { posts }));
+    } catch (err) {
+      next(err);
+    }
+  },
+
   // ── Public ─────────────────────────────────────────────────────────────
 
   async getPublishedList(req: Request, res: Response, next: NextFunction): Promise<void> {

@@ -176,8 +176,25 @@ export const blogService = {
   },
 
   async getPublishedBySlug(slug: string) {
-    const blog = await Blog.findOne({ slug, status: 'published' });
+    const blog = await Blog.findOne({ slug, status: 'published' })
+      .populate('relatedPosts', 'title slug coverImageUrl tag readTimeMinutes status');
     if (!blog) throw new AppError('Blog post not found', 404);
-    return withSeoDefaults(blog);
+
+    const obj = withSeoDefaults(blog);
+    // Defensive filter: a related post picked at write-time may have since
+    // been unpublished. Drop it silently rather than showing a broken link.
+    obj.relatedPosts = (obj.relatedPosts || []).filter((p: any) => p.status === 'published');
+    return obj;
+  },
+
+  /**
+   * Lightweight title search used by the admin's "Recommended Reading"
+   * picker in blogs-tab.tsx. Excludes the post currently being edited so
+   * it can't recommend itself.
+   */
+  async searchForRelatedPosts(query: string, excludeId?: string) {
+    const filter: any = { title: { $regex: query, $options: 'i' } };
+    if (excludeId) filter._id = { $ne: excludeId };
+    return Blog.find(filter).select('title slug status').limit(10).sort({ createdAt: -1 });
   },
 };

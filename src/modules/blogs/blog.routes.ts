@@ -9,6 +9,7 @@ const router = Router();
 // below, or Express will try to match "admin" as a slug value.
 
 router.get('/admin', requireAdmin, blogController.getAdminList);
+router.get('/admin/search', requireAdmin, blogController.searchForRelatedPosts);
 router.post('/admin', requireAdmin, blogController.createBlog);
 router.patch('/admin/:id', requireAdmin, blogController.updateBlog);
 router.post('/admin/:id/publish', requireAdmin, blogController.publishBlog);

@@ -50,13 +50,14 @@ export interface IBlog extends Document {
   title: string;
   slug: string;
   excerpt: string;
-  content: string; // sanitized HTML — bold, links, tables only
+  content: string; // sanitized HTML — bold, links, tables, h2-h4, inline images
   tag: BlogTag;
   keywords: string[]; // visible chips on the public post
   coverImageUrl: string;
   authorName: string;
   authorTitle?: string;
   authorImageUrl?: string;
+  authorBio?: string; // 2-3 sentence bio shown at the bottom of the post
   status: BlogStatus;
   publishedAt?: Date;
   readTimeMinutes: number;
@@ -66,6 +67,7 @@ export interface IBlog extends Document {
   canonicalUrl?: string;
   images: IBlogImage[];
   report?: IBlogReport;
+  relatedPosts: mongoose.Types.ObjectId[]; // up to 5, ref: 'Blog', admin-curated
   createdAt: Date;
   updatedAt: Date;
 }
@@ -89,6 +91,7 @@ const BlogSchema = new Schema<IBlog>(
     authorName: { type: String, required: true, trim: true },
     authorTitle: { type: String, trim: true },
     authorImageUrl: { type: String },
+    authorBio: { type: String, trim: true, maxlength: 300 },
     status: {
       type: String,
       enum: BLOG_STATUSES,
@@ -104,6 +107,14 @@ const BlogSchema = new Schema<IBlog>(
     canonicalUrl: { type: String },
     images: { type: [BlogImageSchema], default: [] },
     report: { type: BlogReportSchema, default: undefined },
+    relatedPosts: {
+      type: [{ type: Schema.Types.ObjectId, ref: 'Blog' }],
+      default: [],
+      validate: {
+        validator: (arr: mongoose.Types.ObjectId[]) => arr.length <= 5,
+        message: 'A maximum of 5 related posts can be selected',
+      },
+    },
   },
   { timestamps: true }
 );

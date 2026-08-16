@@ -31,6 +31,7 @@ export const createBlogSchema = z.object({
   authorName: z.string({ error: 'Author name is required' }).min(1).max(200),
   authorTitle: z.string().max(200).optional(),
   authorImageUrl: z.string().url().optional(),
+  authorBio: z.string().max(300).optional(),
   readTimeMinutes: z.number().int().min(1).optional(),
   seoTitle: z.string().max(200).optional(),
   seoDescription: z.string().max(300).optional(),
@@ -38,6 +39,7 @@ export const createBlogSchema = z.object({
   canonicalUrl: z.string().url().optional(),
   images: z.array(blogImageSchema).optional(),
   report: reportSchema.optional(),
+  relatedPosts: z.array(z.string()).max(5, 'At most 5 related posts allowed').optional(),
 });
 
 // Same shape, everything optional (including slug — the service layer is

@@ -1,8 +1,9 @@
 import { z } from 'zod';
 import { QUESTION_IDS, ANSWER_SCALE_VALUES } from './leadmagnet.constants.js';
 
-// Each answer must be exactly one of the frontend's discrete scale values
-// (1, 3, 5, 7, 10) — not any integer 1-10 like the old continuous scale.
+// Each answer must be exactly one of the frontend's discrete answer values
+// (0, 1, 4, 7, 10) — where 0 means "I don't know / haven't looked into this".
+// Not any integer 0-10 like the old continuous scale.
 // z.literal union enforces that precisely and gives a clear error message.
 const answerValueSchema = z.union(
   ANSWER_SCALE_VALUES.map((v) => z.literal(v)),

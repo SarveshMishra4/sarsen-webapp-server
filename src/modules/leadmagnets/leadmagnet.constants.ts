@@ -20,16 +20,16 @@
  *
  * IMPORTANT:
  * If you ever add/remove/renumber questions in the frontend's QUESTIONS array,
- * or change the SCALE array's values, update QUESTION_TO_CANVAS_AREA and
+ * or change the answer options' values, update QUESTION_TO_CANVAS_AREA and
  * ANSWER_SCALE_VALUES below to match. They must stay in sync.
  *
- * v2 CHANGE LOG (previous 22-question / 1-10 continuous scale -> current):
- *   - Removed questions: q4, q10, q13, q15, q16, q18, q21 (dropped from frontend's
- *     QUESTIONS array).
- *   - Answer scale changed from any integer 1-10 to the fixed discrete set
- *     {1, 3, 5, 7, 10} (frontend's SCALE array: Critical/Weak/Developing/Healthy/Strong).
- *   - Submission payload now also carries founderName and industry (both required),
- *     and companyName is now required (previously optional).
+ * v3 CHANGE LOG (previous 15‑question / 1-10 continuous scale -> current):
+ *   - Replaced the question bank with the 15 finalized founder‑diagnostic questions
+ *     (IDs q1–q15). All old question IDs (q1, q2, q3, q5, q6, q7, q8, q9, q11,
+ *     q12, q14, q17, q19, q20, q22) are retired.
+ *   - Answer scale changed from the fixed discrete set {1, 3, 5, 7, 10} to
+ *     {0, 1, 4, 7, 10}. 0 is a valid, counted answer meaning "I don't know /
+ *     haven't looked into this."
  */
 
 export const CANVAS_AREA_KEYS = [
@@ -48,31 +48,32 @@ export type CanvasAreaKey = (typeof CANVAS_AREA_KEYS)[number];
 
 // Maps each question id -> the canvas area it scores against.
 // Mirrors the `canvasArea` field on each question in the frontend's QUESTIONS array.
-// (15 questions as of v2 — q4, q10, q13, q15, q16, q18, q21 were removed.)
+// Updated to the 15 new questions (q1–q15).
 export const QUESTION_TO_CANVAS_AREA: Record<string, CanvasAreaKey> = {
-  q1: 'customer_segments',
-  q2: 'value_proposition',
-  q3: 'revenue_streams',
+  q1: 'value_proposition',
+  q2: 'customer_relationships',
+  q3: 'customer_segments',
+  q4: 'key_resources',
   q5: 'key_resources',
-  q6: 'key_activities',
-  q7: 'value_proposition',
-  q8: 'channels',
-  q9: 'customer_relationships',
-  q11: 'cost_structure',
-  q12: 'cost_structure',
+  q6: 'value_proposition',
+  q7: 'channels',
+  q8: 'revenue_streams',
+  q9: 'cost_structure',
+  q10: 'cost_structure',
+  q11: 'key_partners',
+  q12: 'key_activities',
+  q13: 'key_activities',
   q14: 'key_activities',
-  q17: 'key_partners',
-  q19: 'customer_segments',
-  q20: 'key_activities',
-  q22: 'revenue_streams',
+  q15: 'cost_structure',
 };
 
 export const QUESTION_IDS = Object.keys(QUESTION_TO_CANVAS_AREA) as readonly string[];
 
-// The frontend's SCALE array only ever sends one of these five values per question
-// (Critical=1, Weak=3, Developing=5, Healthy=7, Strong=10). Any other integer
-// (e.g. 2, 4, 6, 8, 9 from the old continuous slider) is no longer a legal answer.
-export const ANSWER_SCALE_VALUES = [1, 3, 5, 7, 10] as const;
+// The frontend answer options always use one of these five values per question.
+// 0 = "I don't know / haven't looked into this" (valid, counted as lowest).
+// 1 / 4 / 7 / 10 are the four other answer tiers (see QUESTIONS array in
+// businessHeatMapConfig.tsx).
+export const ANSWER_SCALE_VALUES = [0, 1, 4, 7, 10] as const;
 export type AnswerScaleValue = (typeof ANSWER_SCALE_VALUES)[number];
 
 export const LEAD_MAGNET_TYPES = ['business_heat_map'] as const;

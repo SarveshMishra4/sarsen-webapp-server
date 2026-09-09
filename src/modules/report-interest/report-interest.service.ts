@@ -35,8 +35,12 @@ export const reportInterestService = {
     return submission;
   },
 
+  async getAllSubmissions(): Promise<IReportInterest[]> {
+    return ReportInterest.find().sort({ createdAt: -1 });
+  },
+
   // ─────────────────────────────────────────────────────────────────────────
-  // Phase 2 will add: getAllSubmissions, getSubmissionById, updateStatus —
-  // same shape as contactService — once we wire up the admin panel tab.
+  // getSubmissionById / updateStatus can be added later, same pattern as
+  // contact.service.ts, if you decide you want status management after all.
   // ─────────────────────────────────────────────────────────────────────────
 };

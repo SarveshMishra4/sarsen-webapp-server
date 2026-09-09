@@ -27,6 +27,21 @@ export const reportInterestController = {
     }
   },
 
-  // Phase 2: getAllSubmissions, getSubmissionById, updateStatus — same pattern
-  // as contact.controller.ts — added once the admin panel tab is built.
+  async getAllSubmissions(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const submissions = await reportInterestService.getAllSubmissions();
+
+      res.status(200).json(
+        formatResponse(true, 'Report interest submissions retrieved.', {
+          submissions,
+          total: submissions.length,
+        })
+      );
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  // getSubmissionById / updateStatus — same pattern as contact.controller.ts —
+  // can be added later if status management becomes needed.
 };

@@ -6,6 +6,7 @@ export type NotificationType =
   | 'questionnaire_assigned'
   | 'questionnaire_submitted'
   | 'contact_form_submitted'
+  | 'report_interest_submitted'
   | 'engagement_delivered'
   | 'payment_success'
   | 'feedback_submitted';
@@ -44,6 +45,7 @@ const NotificationSchema = new Schema<INotification>(
         'questionnaire_assigned',
         'questionnaire_submitted',
         'contact_form_submitted',
+        'report_interest_submitted',
         'engagement_delivered',
         'payment_success',
         'feedback_submitted',

@@ -58,7 +58,7 @@ import notificationRoutes from './modules/notifications/notification.routes.js';
 import leadMagnetRoutes from './modules/leadmagnets/leadmagnet.routes.js';
 import blogRoutes from './modules/blogs/blog.routes.js';
 import uploadRoutes from './modules/uploads/upload.routes.js';
-
+import reportInterestRoutes from './modules/report-interest/report-interest.routes.js';
 
 // ...
 
@@ -150,6 +150,7 @@ app.use('/leadmagnets', leadMagnetRoutes);
 app.use('/blogs', blogRoutes);
 app.use('/uploads', uploadRoutes);
 
+app.use('/report-interest', reportInterestRoutes);
 
 // ─── 404 Handler ─────────────────────────────────────────────────────────────
 // Catches any request that didn't match a registered route

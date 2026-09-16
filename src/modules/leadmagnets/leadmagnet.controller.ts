@@ -69,6 +69,38 @@ export const leadMagnetController = {
   },
 
   /**
+   * GET /leadmagnets/admin/stats?days=28|all&leadMagnetType=
+   *
+   * Powers the counter boxes above the admin Leads list. `days` drives the
+   * one adjustable box (defaults to all-time if omitted/invalid-shaped);
+   * the other three (today/yesterday/thisWeek) are always returned.
+   */
+  async getAdminLeadStats(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const leadMagnetTypeRaw = typeof req.query.leadMagnetType === 'string' ? req.query.leadMagnetType : undefined;
+      const leadMagnetType = leadMagnetTypeRaw && (LEAD_MAGNET_TYPES as readonly string[]).includes(leadMagnetTypeRaw)
+        ? (leadMagnetTypeRaw as LeadMagnetType)
+        : undefined;
+
+      const daysRaw = typeof req.query.days === 'string' ? req.query.days : undefined;
+      const days: number | 'all' = !daysRaw || daysRaw === 'all' ? 'all' : Number(daysRaw);
+
+      if (days !== 'all' && (!Number.isFinite(days) || days <= 0)) {
+        throw new AppError('Invalid "days" query parameter.', 400);
+      }
+
+      const stats = await leadMagnetService.getAdminLeadStats({
+        ...(leadMagnetType !== undefined && { leadMagnetType }),
+        days,
+      });
+
+      res.status(200).json(formatResponse(true, 'Stats retrieved.', stats));
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  /**
    * GET /leadmagnets/admin/:clientId/submissions
    */
   async getAdminLeadSubmissions(req: Request, res: Response, next: NextFunction): Promise<void> {

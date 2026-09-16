@@ -634,6 +634,26 @@ export interface GetAdminLeadsListOptions {
   limit?: number;
 }
 
+// ─── Admin: Leads stat counters ─────────────────────────────────────────────
+// Powers the counter boxes above the admin Leads list (Today / Yesterday /
+// This Week / adjustable "Last N days"). "User" here means a distinct
+// Client document — i.e. counted by the Client's own `createdAt` (when that
+// email first hit the system), not by submission count. A client who
+// submits again later doesn't get counted a second time.
+
+export interface AdminLeadStats {
+  today: number;
+  yesterday: number;
+  thisWeek: number;
+  rangeCount: number;
+  rangeDays: number | 'all';
+}
+
+export interface GetAdminLeadStatsOptions {
+  leadMagnetType?: LeadMagnetType;
+  days?: number | 'all';
+}
+
 // ─── Public service methods ────────────────────────────────────────────────
 
 export const leadMagnetService = {
@@ -764,6 +784,89 @@ export const leadMagnetService = {
     }));
 
     return { leads, total, page, limit };
+  },
+
+  /**
+   * Counts distinct Clients (= "users") created in each of a few fixed
+   * windows, plus one adjustable window driven by the admin panel's
+   * range selector. Counted by `Client.createdAt`, independent of the
+   * paginated leads list above.
+   */
+  async getAdminLeadStats(opts: GetAdminLeadStatsOptions): Promise<AdminLeadStats> {
+    const { leadMagnetType, days } = opts;
+
+    // Day boundaries in IST, matching the formatIST() convention the admin
+    // panel already uses elsewhere, so "Today" lines up with what an admin
+    // sees in the timestamp column rather than UTC midnight.
+    const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+    const now = new Date();
+    const istNow = new Date(now.getTime() + IST_OFFSET_MS);
+    const istMidnightUTC = Date.UTC(istNow.getUTCFullYear(), istNow.getUTCMonth(), istNow.getUTCDate());
+
+    const todayStart = new Date(istMidnightUTC - IST_OFFSET_MS);
+    const yesterdayStart = new Date(todayStart.getTime() - 24 * 60 * 60 * 1000);
+    const weekStart = new Date(todayStart.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+    const isAllTime = !days || days === 'all';
+    const rangeDaysNum = isAllTime ? null : Math.max(1, days as number);
+    const rangeStart = rangeDaysNum
+      ? new Date(todayStart.getTime() - rangeDaysNum * 24 * 60 * 60 * 1000)
+      : null;
+
+    // Client documents don't store leadMagnetType directly (it lives on
+    // their submissions), so when the filter is set, narrow down via the
+    // same $lookup pattern used in getAdminLeadsList before counting.
+    const basePipeline: mongoose.PipelineStage[] = [];
+    if (leadMagnetType) {
+      basePipeline.push(
+        {
+          $lookup: {
+            from: LeadMagnetSubmission.collection.name,
+            let: { clientId: '$_id' },
+            pipeline: [
+              { $match: { $expr: { $eq: ['$clientId', '$$clientId'] } } },
+              { $project: { leadMagnet: 1, _id: 0 } },
+            ],
+            as: 'submissions',
+          },
+        },
+        { $match: { 'submissions.leadMagnet': leadMagnetType } }
+      );
+    }
+
+    // Built and typed separately from the main pipeline: $facet only
+    // accepts the narrower FacetPipelineStage type (it excludes a few
+    // stages like $collStats), so this must be declared explicitly rather
+    // than inferred from a spread — otherwise TS widens it to the general
+    // PipelineStage[] and the assignment below fails to typecheck.
+    const rangeFacetStages: mongoose.PipelineStage.FacetPipelineStage[] = rangeStart
+      ? [{ $match: { createdAt: { $gte: rangeStart } } }, { $count: 'count' }]
+      : [{ $count: 'count' }];
+
+    const facetStage: mongoose.PipelineStage.Facet = {
+      $facet: {
+        today: [{ $match: { createdAt: { $gte: todayStart } } }, { $count: 'count' }],
+        yesterday: [
+          { $match: { createdAt: { $gte: yesterdayStart, $lt: todayStart } } },
+          { $count: 'count' },
+        ],
+        thisWeek: [{ $match: { createdAt: { $gte: weekStart } } }, { $count: 'count' }],
+        range: rangeFacetStages,
+      },
+    };
+
+    const pipeline: mongoose.PipelineStage[] = [...basePipeline, facetStage];
+
+    const [result] = await Client.aggregate(pipeline);
+    const pick = (facet: any[] | undefined): number => facet?.[0]?.count || 0;
+
+    return {
+      today: pick(result?.today),
+      yesterday: pick(result?.yesterday),
+      thisWeek: pick(result?.thisWeek),
+      rangeCount: pick(result?.range),
+      rangeDays: rangeDaysNum ?? 'all',
+    };
   },
 
   async getClientSubmissions(clientId: string): Promise<ILeadMagnetSubmission[]> {

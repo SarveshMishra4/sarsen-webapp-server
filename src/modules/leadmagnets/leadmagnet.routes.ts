@@ -12,6 +12,10 @@ const router = Router();
 // and safety if a public GET/:something is ever added later.
 
 router.get('/admin', requireAdmin, leadMagnetController.getAdminLeadsList);
+// Registered before the '/admin/:clientId/...' routes below. Not currently
+// load-bearing (no route matches the 2-segment shape '/admin/:clientId'
+// today), but keeps this safe if one is ever added later.
+router.get('/admin/stats', requireAdmin, leadMagnetController.getAdminLeadStats);
 router.get('/admin/:clientId/submissions', requireAdmin, leadMagnetController.getAdminLeadSubmissions);
 router.patch('/admin/:clientId/view', requireAdmin, leadMagnetController.markAdminLeadViewed);
 

@@ -1,5 +1,5 @@
 import mongoose, { Document, Schema } from 'mongoose';
-import { LEAD_MAGNET_TYPES, LeadMagnetType, AnswerScaleValue } from './leadmagnet.constants.js';
+import { LEAD_MAGNET_TYPES, LeadMagnetType, AnswerScaleValue, HelpAreaKey } from './leadmagnet.constants.js';
 
 // ─── Client ─────────────────────────────────────────────────────────────────
 // One record per unique (normalized) email address. This is intentionally
@@ -77,6 +77,21 @@ export const Client = mongoose.model<IClient>('Client', ClientSchema);
 // a client submitting the same or a different lead magnet again always
 // creates a new document, preserving full history.
 
+// Capture-only answers from the extra founder-profile cards. Stored for the
+// sales/admin side to read — never used in scoring. See the validator for how
+// the incoming payload is normalised into exactly this shape.
+export interface IFounderProfile {
+  capitalInvested: string | null;
+  timeInvested: string | null;
+  raisedFunds: boolean | null;
+  fundingSource: string | null;
+  fundingSourceOther: string;
+  fundingAmount: string | null;
+  helpAreas: Record<HelpAreaKey, boolean>;
+  problems: string;
+  nextFinancialGoal: string;
+}
+
 export interface ILeadMagnetSubmission extends Document {
   clientId: mongoose.Types.ObjectId;
   leadMagnet: LeadMagnetType;
@@ -84,11 +99,29 @@ export interface ILeadMagnetSubmission extends Document {
   companyName: string;
   industry: string;
   answers: Record<string, AnswerScaleValue>;
+  profile?: IFounderProfile; // absent on submissions made before the profile cards existed
   result: unknown; // shape varies per lead magnet type — see leadmagnet.service.ts
   clientStatusAtSubmission: 'new' | 'existing';
   createdAt: Date;
   updatedAt: Date;
 }
+
+const FounderProfileSchema = new Schema<IFounderProfile>(
+  {
+    capitalInvested: { type: String, default: null },
+    timeInvested: { type: String, default: null },
+    raisedFunds: { type: Boolean, default: null },
+    fundingSource: { type: String, default: null },
+    fundingSourceOther: { type: String, default: '' },
+    fundingAmount: { type: String, default: null },
+    // { customer: true, market: false, ... } — plain object so it reads
+    // naturally in JSON for the admin panel.
+    helpAreas: { type: Schema.Types.Mixed, default: {} },
+    problems: { type: String, default: '' },
+    nextFinancialGoal: { type: String, default: '' },
+  },
+  { _id: false }
+);
 
 const LeadMagnetSubmissionSchema = new Schema<ILeadMagnetSubmission>(
   {
@@ -125,6 +158,14 @@ const LeadMagnetSubmissionSchema = new Schema<ILeadMagnetSubmission>(
     answers: {
       type: Schema.Types.Mixed,
       required: true,
+    },
+    // NEW (v4): capture-only founder profile. Optional on purpose — older
+    // submissions have none, and `default: undefined` keeps it absent (rather
+    // than an empty object) when the frontend didn't send one.
+    profile: {
+      type: FounderProfileSchema,
+      required: false,
+      default: undefined,
     },
     result: {
       type: Schema.Types.Mixed,

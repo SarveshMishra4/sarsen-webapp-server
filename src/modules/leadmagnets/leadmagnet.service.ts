@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import { Client, LeadMagnetSubmission, ILeadMagnetSubmission, IClient } from './leadmagnet.model.js';
 import { LeadMagnetType, AnswerScaleValue } from './leadmagnet.constants.js';
 import { AppError } from '../../core/errors/AppError.js';
+import type { FounderProfileInput } from './leadmagnet.validator.js';
 import { logger } from '../../core/logger/logger.js';
 
 // ─── Diagnostic Engine (ported from businessDiagnosticEngine.ts) ──────────
@@ -663,7 +664,9 @@ export const leadMagnetService = {
     founderName: string,
     companyName: string,
     industry: string,
-    answers: Record<string, AnswerScaleValue>
+    answers: Record<string, AnswerScaleValue>,
+    // Capture-only. Stored with the submission, but never passed to diagnose().
+    profile?: FounderProfileInput
   ): Promise<{
     submissionId: string;
     clientStatus: 'new' | 'existing';
@@ -679,6 +682,7 @@ export const leadMagnetService = {
       companyName,
       industry,
       answers,
+      ...(profile !== undefined && { profile }),
       result,
       clientStatusAtSubmission: isNewClient ? 'new' : 'existing',
     });
@@ -688,6 +692,7 @@ export const leadMagnetService = {
       clientId,
       clientStatus: isNewClient ? 'new' : 'existing',
       megaScore: result.mega.megaScore,
+      hasProfile: profile !== undefined,
     });
 
     return {

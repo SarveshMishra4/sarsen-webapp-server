@@ -30,6 +30,13 @@
  *   - Answer scale changed from the fixed discrete set {1, 3, 5, 7, 10} to
  *     {0, 1, 4, 7, 10}. 0 is a valid, counted answer meaning "I don't know /
  *     haven't looked into this."
+ *
+ * v4 CHANGE LOG (founder profile — capture only):
+ *   - Added HELP_AREA_KEYS / HELP_AREA_LABELS and the profile text limits. These
+ *     belong to the extra "founder profile" cards the frontend now shows after
+ *     the 15 scored questions. They are STORED, never scored: nothing in
+ *     QUESTION_TO_CANVAS_AREA, ANSWER_SCALE_VALUES or the diagnostic engine
+ *     reads them.
  */
 
 export const CANVAS_AREA_KEYS = [
@@ -78,3 +85,40 @@ export type AnswerScaleValue = (typeof ANSWER_SCALE_VALUES)[number];
 
 export const LEAD_MAGNET_TYPES = ['business_heat_map'] as const;
 export type LeadMagnetType = (typeof LEAD_MAGNET_TYPES)[number];
+
+// ─── Founder profile (capture-only — no role in scoring) ────────────────────
+// Ids of the "Which areas do you need help in?" rows on the frontend
+// (HELP_AREAS in businessHeatmapClient.tsx). They mirror the six dimensions of
+// the Strategy Diagnostic & Direction brochure. Keep in sync by hand if the
+// frontend list ever changes. The labels let the admin panel / emails show
+// something readable instead of a raw id.
+export const HELP_AREA_KEYS = [
+  'customer',
+  'market',
+  'positioning',
+  'business_model',
+  'economics',
+  'finances',
+] as const;
+
+export type HelpAreaKey = (typeof HELP_AREA_KEYS)[number];
+
+export const HELP_AREA_LABELS: Record<HelpAreaKey, string> = {
+  customer: 'Finding the Right Customers',
+  market: 'Entering the Market',
+  positioning: 'Standing Out from Others',
+  business_model: 'Earning Revenue',
+  economics: 'Making Each Customer Profitable',
+  finances: 'Funds & Finances',
+};
+
+// Upper bounds on the profile fields. The category fields (capital, time,
+// funding source/amount) are deliberately NOT locked to an enum: the option
+// labels live in the frontend and may be reworded, and a lead should never be
+// lost because a dropdown label changed. Free text is bounded so it can't be
+// used to stuff the database.
+export const PROFILE_LIMITS = {
+  category: 100, // capital / time / funding source / funding amount labels
+  fundingSourceOther: 120, // matches maxLength on the frontend input
+  longText: 2000, // matches MAX_TEXT_LENGTH on the frontend textareas
+} as const;
